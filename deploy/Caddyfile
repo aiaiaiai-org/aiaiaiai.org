@@ -1,0 +1,15 @@
+# © 2026 aiaiaiai · aiaiaiai.org
+# SPDX-License-Identifier: MPL-2.0
+{
+  admin off
+  auto_https off
+}
+:1927 {
+  root * /srv/site
+  encode zstd gzip
+  respond /healthz "ok" 200
+  header X-Content-Type-Options nosniff
+  header Referrer-Policy strict-origin-when-cross-origin
+  header Content-Security-Policy "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'"
+  file_server
+}
