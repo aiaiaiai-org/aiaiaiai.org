@@ -105,9 +105,9 @@ jobs:
           for attempt in {1..18}; do
             if curl --fail --silent --show-error --max-time 15 https://aiaiaiai.org/beta/ -o "$RUNNER_TEMP/beta.html" && \
                grep -Fq 'id="awakening"' "$RUNNER_TEMP/beta.html" && \
-               curl --fail --silent --show-error --max-time 15 https://aiaiaiai.org/ -o "$RUNNER_TEMP/release.html" && \
-               ! grep -Fq 'id="awakening"' "$RUNNER_TEMP/release.html"; then
-              echo 'Development and release routes verified'
+               test "$(curl --silent --show-error --max-time 15 -o /dev/null -w '%{http_code}' https://aiaiaiai.org/)" = 302 && \
+               test "$(curl --silent --show-error --max-time 15 -o /dev/null -w '%{redirect_url}' https://aiaiaiai.org/)" = https://aiaiaiai.org/beta/; then
+              echo 'Development route and temporary landing redirect verified'
               exit 0
             fi
             sleep 10
