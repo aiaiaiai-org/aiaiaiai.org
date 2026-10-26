@@ -1,0 +1,60 @@
+---
+// © 2026 aiaiaiai · aiaiaiai.org
+// SPDX-License-Identifier: MPL-2.0
+// The development experience is published at /beta.
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="aiaiaiai" />
+    <title>aiaiaiai</title>
+    <style is:global>
+      html,
+      body {
+        margin: 0;
+        width: 100%;
+        min-height: 100%;
+        background: #fff;
+      }
+    </style>
+  </head>
+  <body>
+    <main id="awakening" aria-label="Star Awakening interaction preview">
+      <div class="preview-note">aiaiaiai · interaction study</div>
+      <div class="scene" aria-hidden="true"></div>
+      <button
+        class="star-target"
+        aria-label="Awaken the star"
+        aria-describedby="preview-status"
+        disabled
+      ></button>
+      <span class="cue" aria-hidden="true">
+        touch to begin
+      </span>
+      <p id="preview-status" role="status">
+        Interaction preview. No model is connected or downloaded.
+      </p>
+      <button class="reset" hidden>
+        Reset interaction
+      </button>
+      <noscript>This 3D interaction requires JavaScript.</noscript>
+    </main>
+    <script>
+      import('../../star-awakening/mount')
+        .then(({ mount }) => {
+          const root = document.querySelector<HTMLElement>('#awakening');
+          if (root) mount(root);
+        })
+        .catch((error: unknown) => {
+          console.error('Star Awakening could not start', error);
+          const status = document.querySelector('#preview-status');
+          if (status)
+            status.textContent =
+              'The 3D preview could not start. Reload to try again.';
+        });
+    </script>
+  </body>
+</html>

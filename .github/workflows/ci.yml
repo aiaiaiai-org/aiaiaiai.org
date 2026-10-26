@@ -25,6 +25,12 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npm run test:browser
       - run: npm run build
+      - name: Verify release and development route separation
+        run: |
+          set -euo pipefail
+          test -f dist/beta/index.html
+          grep -Fq 'id="awakening"' dist/beta/index.html
+          ! grep -Fq 'id="awakening"' dist/index.html
       - uses: actions/upload-artifact@v4
         with:
           name: site-dist
@@ -56,6 +62,8 @@ jobs:
           test "$(curl --fail --silent http://127.0.0.1:1927/healthz)" = ok
           curl --fail --silent http://127.0.0.1:1927/ > /tmp/index.html
           ! grep -Eq 'id="awakening"|<canvas|touch to begin|<script' /tmp/index.html
+          curl --fail --silent http://127.0.0.1:1927/beta/ > /tmp/beta.html
+          grep -Fq 'id="awakening"' /tmp/beta.html
           test "$(curl --silent -o /dev/null -w '%{http_code}' http://127.0.0.1:1927/not-a-route)" = 404
       - name: Preserve the validated container
         run: docker save aiaiaiai-site:verified | gzip > site-image.tar.gz
