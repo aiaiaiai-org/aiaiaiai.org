@@ -1,0 +1,116 @@
+# © 2026 aiaiaiai · aiaiaiai.org
+# SPDX-License-Identifier: MPL-2.0
+name: Deploy development
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: Successful Full CI run with a verified site-image artifact
+        required: true
+        type: string
+permissions:
+  contents: read
+  actions: read
+  packages: write
+concurrency:
+  group: aiaiaiai-beta-deploy
+  cancel-in-progress: false
+jobs:
+  publish-and-deploy:
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    environment: development
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify the checked release artifact
+        id: source
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ inputs.run_id }}
+        run: |
+          set -Eeuo pipefail
+          [[ "$RUN_ID" =~ ^[0-9]+$ ]]
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID" > "$RUNNER_TEMP/source-run.json"
+          jq -e '.conclusion == "success" and .path == ".github/workflows/ci.yml" and .head_repository.full_name == env.GITHUB_REPOSITORY' "$RUNNER_TEMP/source-run.json"
+          sha="$(jq -r .head_sha "$RUNNER_TEMP/source-run.json")"
+          [[ "$sha" =~ ^[0-9a-f]{40}$ ]]
+          git merge-base --is-ancestor "$sha" origin/master
+          # The selected build must contain the actual /beta route.
+          git cat-file -e "$sha:src/pages/beta/index.astro"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+      - uses: actions/download-artifact@v4
+        with:
+          name: site-image
+          path: verified/
+          run-id: ${{ inputs.run_id }}
+          github-token: ${{ github.token }}
+      - name: Publish verified image and resolve immutable digest
+        id: image
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_SHA: ${{ steps.source.outputs.sha }}
+        run: |
+          set -Eeuo pipefail
+          docker load -i verified/site-image.tar.gz
+          image="ghcr.io/$GITHUB_REPOSITORY:$RELEASE_SHA"
+          printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          docker tag aiaiaiai-site:verified "$image"
+          docker push "$image"
+          digest="$(docker inspect --format '{{index .RepoDigests 0}}' "$image")"
+          [[ "$digest" =~ ^ghcr.io/.+@sha256:[0-9a-f]{64}$ ]]
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+      - name: Request workload activation from infra
+        id: dispatch
+        env:
+          GH_TOKEN: ${{ secrets.INFRA_DEPLOY_TOKEN }}
+          IMAGE_DIGEST: ${{ steps.image.outputs.digest }}
+        run: |
+          set -Eeuo pipefail
+          test -n "$GH_TOKEN"
+          request_id="aiaiaiai-beta-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          jq -n --arg image "$IMAGE_DIGEST" --arg request_id "$request_id" \
+            '{event_type:"deploy-workload",client_payload:{workload:"aiaiaiai-site",image:$image,request_id:$request_id}}' > "$RUNNER_TEMP/dispatch.json"
+          gh api -X POST repos/aiaiaiai-org/infra/dispatches --input "$RUNNER_TEMP/dispatch.json"
+          echo "request_id=$request_id" >> "$GITHUB_OUTPUT"
+      - name: Await infra deployment result
+        env:
+          GH_TOKEN: ${{ secrets.INFRA_DEPLOY_TOKEN }}
+          REQUEST_ID: ${{ steps.dispatch.outputs.request_id }}
+        run: |
+          set -Eeuo pipefail
+          for attempt in {1..120}; do
+            run="$(gh api 'repos/aiaiaiai-org/infra/actions/workflows/deploy-workload.yml/runs?event=repository_dispatch&per_page=30' \
+              --jq '.workflow_runs[] | select(.display_title | contains(env.REQUEST_ID)) | .id' | head -1)"
+            if [[ -n "$run" ]]; then
+              status="$(gh api "repos/aiaiaiai-org/infra/actions/runs/$run" --jq '.status + ":" + (.conclusion // "")')"
+              if [[ "$status" == completed:success ]]; then
+                echo "Infra workload deployed: $run"
+                exit 0
+              fi
+              if [[ "$status" == completed:* ]]; then
+                echo "Infra deployment failed: $status ($run)" >&2
+                exit 1
+              fi
+            fi
+            sleep 10
+          done
+          echo 'Timed out waiting for infra deployment' >&2
+          exit 1
+      - name: Verify public routes
+        run: |
+          set -Eeuo pipefail
+          for attempt in {1..18}; do
+            if curl --fail --silent --show-error --max-time 15 https://aiaiaiai.org/beta/ -o "$RUNNER_TEMP/beta.html" && \
+               grep -Fq 'id="awakening"' "$RUNNER_TEMP/beta.html" && \
+               test "$(curl --silent --show-error --max-time 15 -o /dev/null -w '%{http_code}' https://aiaiaiai.org/)" = 302 && \
+               test "$(curl --silent --show-error --max-time 15 -o /dev/null -w '%{redirect_url}' https://aiaiaiai.org/)" = https://aiaiaiai.org/beta/; then
+              echo 'Development route and temporary landing redirect verified'
+              exit 0
+            fi
+            sleep 10
+          done
+          echo 'Public development route did not become healthy' >&2
+          exit 1

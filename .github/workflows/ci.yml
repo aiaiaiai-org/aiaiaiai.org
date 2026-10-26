@@ -25,6 +25,13 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npm run test:browser
       - run: npm run build
+      - name: Verify development route and temporary landing redirect
+        run: |
+          set -euo pipefail
+          test -f dist/beta/index.html
+          grep -Fq 'id="awakening"' dist/beta/index.html
+          ! grep -Fq 'id="awakening"' dist/index.html
+          grep -Fq 'redir / /beta/ 302' deploy/Caddyfile
       - uses: actions/upload-artifact@v4
         with:
           name: site-dist
@@ -54,8 +61,10 @@ jobs:
             sleep 1
           done
           test "$(curl --fail --silent http://127.0.0.1:1927/healthz)" = ok
-          curl --fail --silent http://127.0.0.1:1927/ > /tmp/index.html
-          ! grep -Eq 'id="awakening"|<canvas|touch to begin|<script' /tmp/index.html
+          test "$(curl --silent -o /dev/null -w '%{http_code}' http://127.0.0.1:1927/)" = 302
+          test "$(curl --silent -o /dev/null -w '%{redirect_url}' http://127.0.0.1:1927/)" = http://127.0.0.1:1927/beta/
+          curl --fail --silent http://127.0.0.1:1927/beta/ > /tmp/beta.html
+          grep -Fq 'id="awakening"' /tmp/beta.html
           test "$(curl --silent -o /dev/null -w '%{http_code}' http://127.0.0.1:1927/not-a-route)" = 404
       - name: Preserve the validated container
         run: docker save aiaiaiai-site:verified | gzip > site-image.tar.gz
