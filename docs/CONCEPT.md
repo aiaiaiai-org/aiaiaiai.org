@@ -77,7 +77,7 @@ Reference pixels are not committed production assets.
 
 **Precedence rule:** A product's explicitly chosen typeface takes precedence over the organization-wide default.
 
-This standard does not call for automatically rewriting existing product UIs. The completely blank initial page does not need to load fonts at all until text is introduced.
+This standard does not call for automatically rewriting existing product UIs. A White Canvas baseline does not need to load fonts at all; the future interactive scene should load only fonts actually used.
 
 Söhne was considered as an aesthetic reference, but was not selected because of its paid license. Geist is the agreed default.
 
@@ -90,7 +90,7 @@ Söhne was considered as an aesthetic reference, but was not selected because of
 5. **Controlled delivery:** Full CI verifies correctness → Validate verifies deployability (where applicable) → merge requires explicit approval → a separate manual deployment/release requires approval.
 6. **No automatic production deployment** after merge.
 
-New elements, including portals, navigation into products, and interactive objects, **are outside the initial scope**. Each will be defined and evaluated separately for a future release.
+The Star Awakening scene is the currently agreed interactive design direction; its actual first public release remains conditional on full implementation and approval. Portals, product navigation, and other interactive elements are separate future scopes, not implied by the scene.
 
 ## 6. Release Acceptance Boundaries
 
