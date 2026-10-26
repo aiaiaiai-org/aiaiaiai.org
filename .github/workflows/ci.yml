@@ -1,0 +1,65 @@
+# © 2026 aiaiaiai · aiaiaiai.org
+# SPDX-License-Identifier: MPL-2.0
+name: Full CI
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  correctness:
+    name: Full CI
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run format:check
+      - run: npm run check
+      - run: npm test
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:browser
+      - run: npm run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: site-dist
+          path: dist/
+          if-no-files-found: error
+  validate:
+    name: Validate
+    needs: correctness
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: site-dist
+          path: dist/
+      - name: Package verified output
+        run: docker build -t aiaiaiai-site:verified .
+      - name: Check serving contract without activation
+        run: |
+          set -euo pipefail
+          docker run --rm -d --name site -p 127.0.0.1:1927:1927 aiaiaiai-site:verified
+          trap 'docker logs site; docker stop site' EXIT
+          for attempt in {1..20}; do
+            if curl --fail --silent http://127.0.0.1:1927/healthz; then break; fi
+            sleep 1
+          done
+          test "$(curl --fail --silent http://127.0.0.1:1927/healthz)" = ok
+          curl --fail --silent http://127.0.0.1:1927/ > /tmp/index.html
+          ! grep -Eq 'id="awakening"|<canvas|touch to begin|<script' /tmp/index.html
+          test "$(curl --silent -o /dev/null -w '%{http_code}' http://127.0.0.1:1927/not-a-route)" = 404
+      - name: Preserve the validated container
+        run: docker save aiaiaiai-site:verified | gzip > site-image.tar.gz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: site-image
+          path: site-image.tar.gz

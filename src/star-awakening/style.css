@@ -1,0 +1,94 @@
+/* © 2026 aiaiaiai · aiaiaiai.org */
+/* SPDX-License-Identifier: MPL-2.0 */
+@import '@fontsource/geist/400.css';
+
+#awakening {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: #f7f7f5;
+  color: #535653;
+  font:
+    400 13px/1.5 'Geist',
+    sans-serif;
+}
+.scene,
+.scene canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.star-target {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  touch-action: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.star-target:focus-visible {
+  outline: 2px solid #565f73;
+  outline-offset: 8px;
+}
+.star-target[aria-disabled='true'] {
+  cursor: default;
+}
+.cue {
+  position: absolute;
+  top: 73%;
+  left: 0;
+  right: 0;
+  text-align: center;
+  letter-spacing: 0.12em;
+  pointer-events: none;
+  opacity: 1;
+  transition: opacity 350ms ease;
+}
+#awakening[data-phase='pressing'] .cue,
+#awakening[data-phase='transitioning'] .cue,
+#awakening[data-phase='settled'] .cue,
+#awakening[data-failed] .cue {
+  opacity: 0;
+}
+.preview-note {
+  position: absolute;
+  z-index: 1;
+  top: max(24px, env(safe-area-inset-top));
+  left: 24px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+}
+#preview-status {
+  position: absolute;
+  left: 24px;
+  right: 24px;
+  bottom: max(24px, env(safe-area-inset-bottom));
+  text-align: center;
+  font-size: 11px;
+}
+.reset {
+  position: absolute;
+  top: max(24px, env(safe-area-inset-top));
+  right: 24px;
+  border: 0;
+  border-bottom: 1px solid;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+noscript {
+  position: absolute;
+  top: 45%;
+  left: 10%;
+  right: 10%;
+  text-align: center;
+}
+@media (prefers-reduced-motion: reduce) {
+  .cue {
+    transition: opacity 100ms linear;
+  }
+}
