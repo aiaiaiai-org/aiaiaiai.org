@@ -40,6 +40,7 @@ test('real meshes exchange depth on activation without runtime requests', async 
     'settled',
   );
   const after = await page.evaluate(inspect);
+  await expect(page.locator('.cue')).toHaveCSS('opacity', '0');
   expect(after.star[2]).toBeLessThan(before.star[2]!);
   expect(after.satellites.every((s) => s.position[2]! > after.star[2]!)).toBe(
     true,

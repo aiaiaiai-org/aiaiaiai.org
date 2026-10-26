@@ -2,4 +2,8 @@
 // SPDX-License-Identifier: MPL-2.0
 import { defineConfig } from 'astro/config';
 
-export default defineConfig({ site: 'https://aiaiaiai.org', output: 'static' });
+export default defineConfig({
+  site: 'https://aiaiaiai.org',
+  output: 'static',
+  devToolbar: { enabled: false },
+});

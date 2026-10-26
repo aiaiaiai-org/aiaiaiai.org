@@ -89,8 +89,9 @@ export function pose(depth: number, time: number) {
       const angle = (index * Math.PI) / 2 + 0.45 + time * 0.055;
       return {
         id,
-        x: Math.cos(angle) * 1.38,
-        y: Math.sin(angle) * 1.08,
+        // Draw the foreground orbit inward so real mesh silhouettes overlap.
+        x: Math.cos(angle) * (1.38 - depth * 0.25),
+        y: Math.sin(angle) * (1.08 - depth * 0.2),
         z: -0.6 + depth * 1.5 + Math.sin(angle) * 0.12,
       };
     }),

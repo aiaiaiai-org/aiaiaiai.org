@@ -30,6 +30,7 @@ export function createScene(
   light.shadow.bias = -0.0005;
   light.shadow.normalBias = 0.025;
   light.shadow.radius = 5;
+  light.shadow.intensity = 0.24;
   scene.add(light, new THREE.HemisphereLight('#f3f6ff', '#b9b8b1', 2.6));
   const fill = new THREE.DirectionalLight('#dce8ff', 1.4);
   fill.position.set(4, -2, 3);
