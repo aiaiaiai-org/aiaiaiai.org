@@ -14,8 +14,6 @@ const preview = import.meta.env.DEV;
     <meta name="description" content="aiaiaiai" />
     <title>aiaiaiai</title>
     <style is:global>
-      html.preview { background: #efefed; }
-      html.preview body { background: #efefed; }
       :root {
         color-scheme: light;
       }
@@ -25,6 +23,10 @@ const preview = import.meta.env.DEV;
         width: 100%;
         min-height: 100%;
         background: #fff;
+      }
+      html.preview,
+      html.preview body {
+        background: #efefed;
       }
     </style>
   </head>
