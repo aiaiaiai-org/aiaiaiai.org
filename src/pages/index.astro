@@ -6,19 +6,27 @@ const preview = import.meta.env.DEV;
 ---
 
 <!doctype html>
-<html lang="en">
+<html lang="en" class:list={{ preview }}>
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    {preview && <meta name="theme-color" content="#efefed" />}
     <meta name="description" content="aiaiaiai" />
     <title>aiaiaiai</title>
     <style is:global>
+      :root {
+        color-scheme: light;
+      }
       html,
       body {
         margin: 0;
         width: 100%;
         min-height: 100%;
         background: #fff;
+      }
+      html.preview,
+      html.preview body {
+        background: #efefed;
       }
     </style>
   </head>
