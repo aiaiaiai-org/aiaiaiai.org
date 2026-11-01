@@ -122,12 +122,12 @@ request was marked ready or merged.
 
 Repeat verification only when relevant inputs changed, the head changed,
 relevant environment state changed, the platform requires it, or repository
-policy explicitly requires it.
+policy explicitly requires it. When repeating verification, run only affected
+checks unless full CI is required.
 
 Repository exception: Full CI also runs on every push to `master`. A merge
 creates a new revision, and the development deployment may consume only a
-`site-image` artifact verified for that exact `master` revision. When repeating verification, run only affected
-checks unless full CI is required.
+`site-image` artifact verified for that exact `master` revision.
 
 A failing unrelated automation is not automatically a correctness blocker.
 Inspect the failure and determine whether it is relevant to the requested
