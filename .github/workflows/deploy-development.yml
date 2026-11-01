@@ -2,6 +2,10 @@
 # SPDX-License-Identifier: MPL-2.0
 name: Deploy development
 on:
+  workflow_run:
+    workflows: [Full CI]
+    types: [completed]
+    branches: [master]
   workflow_dispatch:
     inputs:
       run_id:
@@ -17,7 +21,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   publish-and-deploy:
-    if: github.ref == 'refs/heads/master'
+    if: (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/master') || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'master' && github.event.workflow_run.head_repository.full_name == github.repository)
     runs-on: ubuntu-latest
     environment: development
     timeout-minutes: 30
@@ -29,7 +33,7 @@ jobs:
         id: source
         env:
           GH_TOKEN: ${{ github.token }}
-          RUN_ID: ${{ inputs.run_id }}
+          RUN_ID: ${{ github.event.workflow_run.id || inputs.run_id }}
         run: |
           set -Eeuo pipefail
           [[ "$RUN_ID" =~ ^[0-9]+$ ]]
@@ -45,7 +49,7 @@ jobs:
         with:
           name: site-image
           path: verified/
-          run-id: ${{ inputs.run_id }}
+          run-id: ${{ github.event.workflow_run.id || inputs.run_id }}
           github-token: ${{ github.token }}
       - name: Publish verified image and resolve immutable digest
         id: image
