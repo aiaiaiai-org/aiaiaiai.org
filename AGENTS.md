@@ -191,7 +191,7 @@ checks unless full CI is required.
 <!-- project-specific -->
 
 Repository exception: Full CI also runs on every push to `master`. A merge
-creates a new revision, and the development deployment may consume only a
+creates a new revision, and the development image may be published only from a
 `site-image` artifact verified for that exact `master` revision.
 
 <!-- /project-specific -->
@@ -222,12 +222,13 @@ merge.
 
 <!-- project-specific -->
 
-Repository exception: the `development` environment (`/beta`) is deployed
-automatically by the **Deploy development** workflow after a successful Full CI
-run for the current `master` revision. The merge authorization is the approval
-for that automation. Agents still need explicit user authorization to dispatch
-any deployment manually. Production releases stay manual and separately
-approved, as `docs/CONCEPT.md` requires.
+Repository exception: the development site (`/beta`) is deployed
+automatically. After a successful Full CI run for the current `master` revision,
+**Publish development image** publishes and attests the verified image, and
+aiaiaiai-org/infra delivers it. This repository holds no credential for infra.
+The merge authorization is the approval for that automation. Agents still need
+explicit user authorization to dispatch any deployment manually. Production
+releases stay manual and separately approved, as `docs/CONCEPT.md` requires.
 
 <!-- /project-specific -->
 

@@ -1,0 +1,85 @@
+# © 2026 aiaiaiai · aiaiaiai.org
+# SPDX-License-Identifier: MPL-2.0
+# Publishes each verified master build and attests its provenance. aiaiaiai-org/infra
+# finds, verifies and deploys it on its own (infra docs/automatic-delivery.md), so this
+# repository holds no credential for infra.
+name: Publish development image
+on:
+  workflow_run:
+    workflows: [Full CI]
+    types: [completed]
+    branches: [master]
+permissions:
+  contents: read
+  actions: read
+  packages: write
+  id-token: write
+  attestations: write
+concurrency:
+  group: aiaiaiai-development-publish
+  cancel-in-progress: false
+jobs:
+  publish:
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'master' && github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify the checked release artifact
+        id: source
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          set -Eeuo pipefail
+          [[ "$RUN_ID" =~ ^[0-9]+$ ]]
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID" > "$RUNNER_TEMP/source-run.json"
+          jq -e '.conclusion == "success" and .path == ".github/workflows/ci.yml" and .head_repository.full_name == env.GITHUB_REPOSITORY' "$RUNNER_TEMP/source-run.json"
+          sha="$(jq -r .head_sha "$RUNNER_TEMP/source-run.json")"
+          [[ "$sha" =~ ^[0-9a-f]{40}$ ]]
+          # The selected build must contain the actual /beta route.
+          git cat-file -e "$sha:src/pages/beta/index.astro"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          # Publish only the current master head, and only when this run is for
+          # that same commit: the attestation then binds the image to exactly
+          # the commit infra verifies. A late, superseded build is skipped.
+          head="$(git rev-parse origin/master)"
+          if [[ "$sha" != "$head" || "$sha" != "$GITHUB_SHA" ]]; then
+            echo "::notice::Skipping superseded revision $sha; master is at $head"
+            echo "current=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "current=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/download-artifact@v4
+        if: steps.source.outputs.current == 'true'
+        with:
+          name: site-image
+          path: verified/
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+      - name: Publish verified image and resolve immutable digest
+        if: steps.source.outputs.current == 'true'
+        id: image
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_SHA: ${{ steps.source.outputs.sha }}
+        run: |
+          set -Eeuo pipefail
+          docker load -i verified/site-image.tar.gz
+          image="ghcr.io/$GITHUB_REPOSITORY:$RELEASE_SHA"
+          printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          docker tag aiaiaiai-site:verified "$image"
+          docker push "$image"
+          reference="$(docker inspect --format '{{index .RepoDigests 0}}' "$image")"
+          [[ "$reference" =~ ^ghcr.io/.+@(sha256:[0-9a-f]{64})$ ]]
+          echo "name=ghcr.io/$GITHUB_REPOSITORY" >> "$GITHUB_OUTPUT"
+          echo "digest=${BASH_REMATCH[1]}" >> "$GITHUB_OUTPUT"
+      - name: Attest build provenance
+        if: steps.source.outputs.current == 'true'
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: ${{ steps.image.outputs.name }}
+          subject-digest: ${{ steps.image.outputs.digest }}
+          push-to-registry: true

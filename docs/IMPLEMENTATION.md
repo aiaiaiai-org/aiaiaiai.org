@@ -41,20 +41,23 @@ checks `/healthz`, `/`, unknown-route behavior and preview exclusion, then
 preserves `site-image`. Neither job publishes or deploys.
 
 Full CI also runs on every push to `master`, so each merged revision gets its
-own verified `site-image`. When that run succeeds, **Deploy development**
-starts automatically. It deploys only the current `master` revision and skips a
-superseded run that finished late. It loads the verified container, pushes it
-to `ghcr.io/aiaiaiai-org/aiaiaiai.org` and asks infra to activate `/beta`. It
-does not rebuild anything. A manual dispatch with a Full CI run ID can still
-select any verified ancestor of `master`, for example to roll back. Expired
-artifacts require a new run. Production releases stay manual and separately
-approved.
+own verified `site-image`. When that run succeeds, **Publish development image**
+starts automatically. It publishes only the current `master` revision and skips
+a superseded run that finished late. It loads the verified container, pushes it
+to `ghcr.io/aiaiaiai-org/aiaiaiai.org:<full SHA>` and attests the digest's build
+provenance with this workflow's OIDC identity. It does not rebuild anything.
+Expired artifacts require a new run. Production releases stay manual and
+separately approved.
 
-The separate `aiaiaiai-org/infra` **Deploy workload** workflow consumes the
-reported immutable digest with workload `aiaiaiai-site`. Its contract owns
-placement on `edge-prod-2`, network `aiaiaiai-edge`, port `1927` and public
-host `aiaiaiai.org`. The site repository needs no SSH secrets or server
-credentials. Private GHCR pulls use infra's existing registry credentials.
+`aiaiaiai-org/infra` delivers the image on its own: **Reconcile deliveries**
+finds the image for the `master` head and verifies that this repository's
+**Publish development image** workflow attested it for that commit. Then
+**Deploy workload** activates it as workload `aiaiaiai-site`, so `/beta` follows
+within about 15 minutes. This repository holds no token, key or secret for
+infra; infra reads the package through a read-access grant in the package
+settings. The `aiaiaiai-site` contract owns placement on `edge-prod-2`, network
+`aiaiaiai-edge`, port `1927` and public host `aiaiaiai.org`. Rollbacks run in
+infra: **Deploy workload** with an earlier verified digest.
 
 Deploy the workload before activating the apex edge route. DNS/TLS, an actual
 container smoke check and real-device visual/performance testing remain release
