@@ -40,12 +40,15 @@ Full CI builds once; Validate consumes `site-dist`, packages the container,
 checks `/healthz`, `/`, unknown-route behavior and preview exclusion, then
 preserves `site-image`. Neither job publishes or deploys.
 
-After merge and release approval, **Publish verified image** accepts a
-successful Full CI run ID. It checks that the exact source revision is an
-ancestor of `master`, loads the verified container and pushes it to
-`ghcr.io/aiaiaiai-org/aiaiaiai.org`. It does not rebuild or activate anything.
-Preserve the verified commits when merging; a squash requires a new verified
-run for the changed revision. Expired artifacts also require a new run.
+Full CI also runs on every push to `master`, so each merged revision gets its
+own verified `site-image`. When that run succeeds, **Deploy development**
+starts automatically. It deploys only the current `master` revision and skips a
+superseded run that finished late. It loads the verified container, pushes it
+to `ghcr.io/aiaiaiai-org/aiaiaiai.org` and asks infra to activate `/beta`. It
+does not rebuild anything. A manual dispatch with a Full CI run ID can still
+select any verified ancestor of `master`, for example to roll back. Expired
+artifacts require a new run. Production releases stay manual and separately
+approved.
 
 The separate `aiaiaiai-org/infra` **Deploy workload** workflow consumes the
 reported immutable digest with workload `aiaiaiai-site`. Its contract owns

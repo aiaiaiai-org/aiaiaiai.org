@@ -3,6 +3,10 @@
 name: Full CI
 on:
   pull_request:
+  # A merge creates a new revision; Deploy development may consume only a
+  # site-image verified for that exact master revision (see AGENTS.md).
+  push:
+    branches: [master]
   workflow_dispatch:
 permissions:
   contents: read
