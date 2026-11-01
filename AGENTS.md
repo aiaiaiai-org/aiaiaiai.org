@@ -1,6 +1,9 @@
 # AGENTS.md
 
-Instructions for OpenAI coding agents working in this repository.
+Instructions for every coding agent working in this repository (Claude Code,
+OpenAI Codex and others). This file is the single source of agent instructions.
+Do not add a `CLAUDE.md`, `.claude/CLAUDE.md` or `CLAUDE.local.md`: Claude Code
+reads `AGENTS.md` only when none of those exist.
 
 ## Website-specific contract
 
@@ -119,7 +122,11 @@ request was marked ready or merged.
 
 Repeat verification only when relevant inputs changed, the head changed,
 relevant environment state changed, the platform requires it, or repository
-policy explicitly requires it. When repeating verification, run only affected
+policy explicitly requires it.
+
+Repository exception: Full CI also runs on every push to `master`. A merge
+creates a new revision, and the development deployment may consume only a
+`site-image` artifact verified for that exact `master` revision. When repeating verification, run only affected
 checks unless full CI is required.
 
 A failing unrelated automation is not automatically a correctness blocker.
@@ -145,6 +152,13 @@ the release.
 
 Deployment always requires explicit user authorization, even after an automatic
 merge.
+
+Repository exception: the `development` environment (`/beta`) is deployed
+automatically by the **Deploy development** workflow after a successful Full CI
+run for the current `master` revision. The merge authorization is the approval
+for that automation. Agents still need explicit user authorization to dispatch
+any deployment manually. Production releases stay manual and separately
+approved, as `docs/CONCEPT.md` requires.
 
 After authorization, deploy the already verified revision or artifact, perform
 the environment transition, activate the release, and verify minimal
