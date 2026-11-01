@@ -5,11 +5,22 @@ OpenAI Codex and others). This file is the single source of agent instructions.
 Do not add a `CLAUDE.md`, `.claude/CLAUDE.md` or `CLAUDE.local.md`: Claude Code
 reads `AGENTS.md` only when none of those exist.
 
+This file and the scripts listed in `scripts/check-shared-sync.rb` are shared
+across aiaiaiai-org repositories. Everything outside `<!-- project-specific -->`
+blocks must match the canonical source named in `.github/shared-sync.yml`, and
+CI enforces it. Change shared text in the canonical source first, then sync each
+repository and update its pinned `ref`. Keep repository-specific rules inside
+project-specific blocks.
+
+<!-- project-specific -->
+
 ## Website-specific contract
 
 For site implementation or release decisions, follow [docs/CONCEPT.md](docs/CONCEPT.md).
 The initial public UI is intentionally pure white (`#FFFFFF`) with no visible elements.
 Only complete, stable features may become public; no placeholders or prerelease UI.
+
+<!-- /project-specific -->
 
 ## GitHub delivery
 
@@ -177,9 +188,13 @@ relevant environment state changed, the platform requires it, or repository
 policy explicitly requires it. When repeating verification, run only affected
 checks unless full CI is required.
 
+<!-- project-specific -->
+
 Repository exception: Full CI also runs on every push to `master`. A merge
 creates a new revision, and the development deployment may consume only a
 `site-image` artifact verified for that exact `master` revision.
+
+<!-- /project-specific -->
 
 A failing unrelated automation is not automatically a correctness blocker.
 Inspect the failure and determine whether it is relevant to the requested
@@ -205,12 +220,16 @@ the release.
 Deployment always requires explicit user authorization, even after an automatic
 merge.
 
+<!-- project-specific -->
+
 Repository exception: the `development` environment (`/beta`) is deployed
 automatically by the **Deploy development** workflow after a successful Full CI
 run for the current `master` revision. The merge authorization is the approval
 for that automation. Agents still need explicit user authorization to dispatch
 any deployment manually. Production releases stay manual and separately
 approved, as `docs/CONCEPT.md` requires.
+
+<!-- /project-specific -->
 
 After authorization, deploy the already verified revision or artifact, perform
 the environment transition, activate the release, and verify minimal
