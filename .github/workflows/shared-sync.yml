@@ -1,0 +1,18 @@
+# © 2026 aiaiaiai · aiaiaiai.org
+# SPDX-License-Identifier: MPL-2.0
+name: Shared sync
+on:
+  schedule:
+    - cron: '41 3 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  drift:
+    name: Shared sync drift
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Fails when the canonical source changed and this repository is behind.
+      - name: Compare shared files with the latest canonical source
+        run: ruby scripts/check-shared-sync.rb --latest
