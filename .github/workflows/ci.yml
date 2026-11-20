@@ -7,6 +7,7 @@ on:
   # a site-image verified for that exact master revision (see AGENTS.md).
   push:
     branches: [master]
+    tags: ['v*']
   workflow_dispatch:
 permissions:
   contents: read
@@ -42,11 +43,20 @@ jobs:
       - run: npm test
       - run: npx playwright install --with-deps chromium
       - run: npm run test:browser
-      - run: npm run build
+      # Root aliases are mutable, but asset URLs must bind to an immutable snapshot.
+      - name: Build path-scoped snapshot
+        env:
+          SITE_SNAPSHOT_BASE: /${{ github.ref_type == 'tag' && github.ref_name || github.sha }}
+        run: npm run build
       - name: Verify development route and temporary landing redirect
         run: |
           set -euo pipefail
           test -f dist/beta/index.html
+          # A historical snapshot must never fetch mutable root /_astro assets.
+          if grep -Eq '(/|"|=)_astro/' dist/beta/index.html; then
+            echo '::error::Unversioned Astro asset URL in immutable snapshot' >&2
+            exit 1
+          fi
           grep -Fq 'id="awakening"' dist/beta/index.html
           ! grep -Fq 'id="awakening"' dist/index.html
           grep -Fq 'host beta.aiaiaiai.org' deploy/Caddyfile
