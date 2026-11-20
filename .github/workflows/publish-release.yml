@@ -69,6 +69,12 @@ jobs:
           docker load -i verified/site-image.tar.gz
           image="ghcr.io/$GITHUB_REPOSITORY:$RELEASE_TAG"
           printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          # A release tag is write-once. Re-running the publisher must never
+          # silently replace a previously advertised immutable artifact.
+          if docker manifest inspect "$image" >/dev/null 2>&1; then
+            echo "::error::Release image tag already exists: $RELEASE_TAG" >&2
+            exit 1
+          fi
           docker tag aiaiaiai-site:verified "$image"
           docker push "$image"
           reference="$(docker inspect --format '{{index .RepoDigests 0}}' "$image")"
