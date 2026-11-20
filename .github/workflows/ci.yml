@@ -114,3 +114,71 @@ jobs:
             site-image.tar.gz
             site-source.json
           if-no-files-found: error
+
+  publish-release:
+    name: Publish release image
+    needs: validate
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read
+      packages: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@v4
+        with:
+          name: site-image
+          path: verified/
+      - name: Validate release ref and tested artifact
+        id: source
+        run: |
+          set -Eeuo pipefail
+          ref="$GITHUB_REF"
+          sha="$GITHUB_SHA"
+          [[ "$ref" =~ ^refs/tags/v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]
+          [[ "$sha" =~ ^[0-9a-f]{40}$ ]]
+          tag="${ref#refs/tags/}"
+          test "$(jq -er '.ref' verified/site-source.json)" = "$ref"
+          test "$(jq -er '.sha' verified/site-source.json)" = "$sha"
+          test -s verified/site-image.tar.gz
+          git fetch --no-tags origin master
+          git fetch --no-tags origin "refs/tags/$tag:refs/tags/$tag"
+          test "$(git rev-parse "refs/tags/$tag^{commit}")" = "$sha"
+          git merge-base --is-ancestor "$sha" origin/master
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+      - name: Publish exact validated release by immutable tag
+        id: image
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.source.outputs.tag }}
+        run: |
+          set -Eeuo pipefail
+          docker load -i verified/site-image.tar.gz
+          image="ghcr.io/$GITHUB_REPOSITORY:$RELEASE_TAG"
+          printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          # Never overwrite a release tag, nor mistake registry downtime for 404.
+          if inspection="$(docker manifest inspect "$image" 2>&1)"; then
+            echo "::error::Release image already exists: $RELEASE_TAG" >&2
+            exit 1
+          elif ! grep -Eqi 'no such manifest|manifest unknown' <<<"$inspection"; then
+            echo "::error::Cannot prove release tag is unused" >&2
+            exit 1
+          fi
+          docker tag aiaiaiai-site:verified "$image"
+          docker push "$image"
+          reference="$(docker inspect --format '{{index .RepoDigests 0}}' "$image")"
+          [[ "$reference" =~ ^ghcr.io/.+@(sha256:[0-9a-f]{64})$ ]]
+          echo "name=ghcr.io/$GITHUB_REPOSITORY" >> "$GITHUB_OUTPUT"
+          echo "digest=${BASH_REMATCH[1]}" >> "$GITHUB_OUTPUT"
+      - name: Attest tag-bound provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: ${{ steps.image.outputs.name }}
+          subject-digest: ${{ steps.image.outputs.digest }}
+          push-to-registry: true
