@@ -38,6 +38,9 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci
+      - name: Show expected workflow formatting
+        run: |
+          npx prettier .github/workflows/ci.yml | diff -u .github/workflows/ci.yml - || true
       - run: npm run format:check
       - run: npm run check
       - run: npm test
