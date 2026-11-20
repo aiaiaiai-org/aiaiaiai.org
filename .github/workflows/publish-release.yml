@@ -71,8 +71,11 @@ jobs:
           printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
           # A release tag is write-once. Re-running the publisher must never
           # silently replace a previously advertised immutable artifact.
-          if docker manifest inspect "$image" >/dev/null 2>&1; then
+          if inspection="$(docker manifest inspect "$image" 2>&1)"; then
             echo "::error::Release image tag already exists: $RELEASE_TAG" >&2
+            exit 1
+          elif ! grep -Eqi 'no such manifest|manifest unknown' <<<"$inspection"; then
+            echo "::error::Cannot prove the release tag is unused; refusing push" >&2
             exit 1
           fi
           docker tag aiaiaiai-site:verified "$image"
