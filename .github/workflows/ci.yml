@@ -38,9 +38,6 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci
-      - name: Show expected workflow formatting
-        run: |
-          npx prettier .github/workflows/ci.yml | diff -u .github/workflows/ci.yml - || true
       - run: npm run format:check
       - run: npm run check
       - run: npm test
@@ -117,7 +114,6 @@ jobs:
             site-image.tar.gz
             site-source.json
           if-no-files-found: error
-
 
   publish-beta:
     name: Publish merge-SHA beta image
