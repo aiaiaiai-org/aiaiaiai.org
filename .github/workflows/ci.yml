@@ -115,6 +115,61 @@ jobs:
             site-source.json
           if-no-files-found: error
 
+
+  publish-beta:
+    name: Publish merge-SHA beta image
+    needs: validate
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read
+      packages: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: site-image
+          path: verified/
+      - name: Verify exact master push artifact
+        run: |
+          set -Eeuo pipefail
+          [[ "$GITHUB_SHA" =~ ^[0-9a-f]{40}$ ]]
+          test "$GITHUB_REF" = refs/heads/master
+          test "$(jq -er '.ref' verified/site-source.json)" = refs/heads/master
+          test "$(jq -er '.sha' verified/site-source.json)" = "$GITHUB_SHA"
+          test -s verified/site-image.tar.gz
+      - name: Publish immutable beta from this exact master commit
+        id: image
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          docker load -i verified/site-image.tar.gz
+          image="ghcr.io/$GITHUB_REPOSITORY:$GITHUB_SHA"
+          printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          if inspection="$(docker manifest inspect "$image" 2>&1)"; then
+            echo "::error::Immutable beta SHA is already published: $GITHUB_SHA" >&2
+            exit 1
+          elif ! grep -Eqi 'no such manifest|manifest unknown' <<<"$inspection"; then
+            echo "::error::Cannot prove beta SHA image is unpublished" >&2
+            exit 1
+          fi
+          docker tag aiaiaiai-site:verified "$image"
+          docker push "$image"
+          reference="$(docker inspect --format '{{index .RepoDigests 0}}' "$image")"
+          [[ "$reference" =~ ^ghcr.io/.+@(sha256:[0-9a-f]{64})$ ]]
+          echo "name=ghcr.io/$GITHUB_REPOSITORY" >> "$GITHUB_OUTPUT"
+          echo "digest=${BASH_REMATCH[1]}" >> "$GITHUB_OUTPUT"
+      - name: Attest commit-bound beta provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: ${{ steps.image.outputs.name }}
+          subject-digest: ${{ steps.image.outputs.digest }}
+          push-to-registry: true
+
   publish-release:
     name: Publish release image
     needs: validate
