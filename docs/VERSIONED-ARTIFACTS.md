@@ -2,7 +2,7 @@
 
 The website produces separately version-prefixed static assets for each source ref.
 
-- Full CI on the actual **post-merge `master` commit** builds with `SITE_SNAPSHOT_BASE=/<full-source-sha>`.
+- Full CI on **every successful post-merge `master` commit** builds with `SITE_SNAPSHOT_BASE=/<full-source-sha>`.
 - Full CI on an approved `vX.Y.Z` tag push builds with `SITE_SNAPSHOT_BASE=/<tag>`.
 - The build output carries `/_astro/` references only under that base path.
 - `Publish development image` publishes green master-head artifacts to GHCR.
@@ -16,3 +16,9 @@ Note: Release and beta are built independently for their respective public base 
 © 2026 aiaiaiai · aiaiaiai.org
 
 Release provenance is generated in the same tag-triggered Full CI workflow after Validate, so the attestation carries `refs/tags/vX.Y.Z` and its source commit rather than the default branch of a separate workflow run.
+
+Each successful master push publishes its own immutable SHA image, even if a
+newer merge arrives before publishing completes. Infra archives the available
+master revisions but advances `beta.aiaiaiai.org/` only when the attested
+version is still the current master head. This prevents lost merge snapshots
+and late-build rollbacks.

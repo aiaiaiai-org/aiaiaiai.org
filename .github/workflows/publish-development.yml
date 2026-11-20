@@ -41,26 +41,19 @@ jobs:
           [[ "$sha" =~ ^[0-9a-f]{40}$ ]]
           # The selected build must contain the actual /beta route.
           git cat-file -e "$sha:src/pages/beta/index.astro"
+          # Keep every successful master merge SHA, even if newer commits
+          # land before this run completes. Infra alone advances the latest
+          # beta alias to the current head (not this old version).
+          git fetch --no-tags origin master
+          git merge-base --is-ancestor "$sha" origin/master
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
-          # Publish only the current master head, and only when this run is for
-          # that same commit: the attestation then binds the image to exactly
-          # the commit infra verifies. A late, superseded build is skipped.
-          head="$(git rev-parse origin/master)"
-          if [[ "$sha" != "$head" || "$sha" != "$GITHUB_SHA" ]]; then
-            echo "::notice::Skipping superseded revision $sha; master is at $head"
-            echo "current=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "current=true" >> "$GITHUB_OUTPUT"
-          fi
       - uses: actions/download-artifact@v4
-        if: steps.source.outputs.current == 'true'
         with:
           name: site-image
           path: verified/
           run-id: ${{ github.event.workflow_run.id }}
           github-token: ${{ github.token }}
       - name: Publish verified image and resolve immutable digest
-        if: steps.source.outputs.current == 'true'
         id: image
         env:
           GH_TOKEN: ${{ github.token }}
@@ -74,6 +67,15 @@ jobs:
           docker load -i verified/site-image.tar.gz
           image="ghcr.io/$GITHUB_REPOSITORY:$RELEASE_SHA"
           printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          # A published SHA is immutable. Never silently replace its image
+          # when a workflow is re-run or an image tag was already claimed.
+          if inspection="$(docker manifest inspect "$image" 2>&1)"; then
+            echo "::error::Beta image already exists: $RELEASE_SHA" >&2
+            exit 1
+          elif ! grep -Eqi 'no such manifest|manifest unknown' <<<"$inspection"; then
+            echo "::error::Cannot establish beta image tag is unused" >&2
+            exit 1
+          fi
           docker tag aiaiaiai-site:verified "$image"
           docker push "$image"
           reference="$(docker inspect --format '{{index .RepoDigests 0}}' "$image")"
@@ -81,7 +83,6 @@ jobs:
           echo "name=ghcr.io/$GITHUB_REPOSITORY" >> "$GITHUB_OUTPUT"
           echo "digest=${BASH_REMATCH[1]}" >> "$GITHUB_OUTPUT"
       - name: Attest build provenance
-        if: steps.source.outputs.current == 'true'
         uses: actions/attest-build-provenance@v2
         with:
           subject-name: ${{ steps.image.outputs.name }}
