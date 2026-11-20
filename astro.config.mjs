@@ -7,7 +7,9 @@ if (
   snapshotBase &&
   !/^\/(?:[0-9a-f]{40}|v[0-9]+\.[0-9]+\.[0-9]+)$/.test(snapshotBase)
 ) {
-  throw new Error('SITE_SNAPSHOT_BASE must be a full commit SHA or a vX.Y.Z tag path');
+  throw new Error(
+    'SITE_SNAPSHOT_BASE must be a full commit SHA or a vX.Y.Z tag path',
+  );
 }
 
 export default defineConfig({
