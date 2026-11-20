@@ -67,6 +67,10 @@ jobs:
           RELEASE_SHA: ${{ steps.source.outputs.sha }}
         run: |
           set -Eeuo pipefail
+          # The artifact must be tied to the triggering push on master:
+          # this SHA is the *post-merge master commit*, never the PR head.
+          test "$(jq -er .ref verified/site-source.json)" = refs/heads/master
+          test "$(jq -er .sha verified/site-source.json)" = "$RELEASE_SHA"
           docker load -i verified/site-image.tar.gz
           image="ghcr.io/$GITHUB_REPOSITORY:$RELEASE_SHA"
           printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin

@@ -3,7 +3,10 @@
 import { defineConfig } from 'astro/config';
 
 const snapshotBase = process.env.SITE_SNAPSHOT_BASE;
-if (snapshotBase && !/^\/(?:[0-9a-f]{40}|v[0-9]+\.[0-9]+\.[0-9]+)$/.test(snapshotBase)) {
+if (
+  snapshotBase &&
+  !/^\/(?:[0-9a-f]{40}|v[0-9]+\.[0-9]+\.[0-9]+)$/.test(snapshotBase)
+) {
   throw new Error('SITE_SNAPSHOT_BASE must be a full commit SHA or a vX.Y.Z tag path');
 }
 

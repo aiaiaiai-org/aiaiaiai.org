@@ -99,7 +99,18 @@ jobs:
           test "$(curl --silent -o /dev/null -w '%{http_code}' http://127.0.0.1:1927/not-a-route)" = 404
       - name: Preserve the validated container
         run: docker save aiaiaiai-site:verified | gzip > site-image.tar.gz
+      - name: Bind build artifact to its exact triggering source ref
+        env:
+          SOURCE_REF: ${{ github.ref }}
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          set -Eeuo pipefail
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          jq -nc --arg ref "$SOURCE_REF" --arg sha "$SOURCE_SHA" '{ref: $ref, sha: $sha}' > site-source.json
       - uses: actions/upload-artifact@v4
         with:
           name: site-image
-          path: site-image.tar.gz
+          path: |
+            site-image.tar.gz
+            site-source.json
+          if-no-files-found: error
