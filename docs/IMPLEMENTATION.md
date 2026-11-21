@@ -36,31 +36,31 @@ the remaining design acceptance criteria are complete.
 
 ## Delivery through infra
 
-Full CI builds once; Validate consumes `site-dist`, packages the container,
-checks `/healthz`, `/`, unknown-route behavior and preview exclusion, then
-preserves `site-image`. Neither job publishes or deploys.
+`ci.yml` is an unprivileged Full CI / Validate workflow: pull requests run it
+read-only. It builds the static site with version-prefixed Astro asset paths,
+validates `/healthz`, `/`, the beta route and immutable assets, then preserves
+`site-image.tar.gz` with a source-ref/SHA manifest. Neither job publishes or
+deploys.
 
-Full CI also runs on every push to `master`, so each merged revision gets its
-own verified `site-image`. When that run succeeds, **Publish development image**
-starts automatically. It publishes only the current `master` revision and skips
-a superseded run that finished late. It loads the verified container, pushes it
-to `ghcr.io/aiaiaiai-org/aiaiaiai.org:<full SHA>` and attests the digest's build
-provenance with this workflow's OIDC identity. It does not rebuild anything.
-Expired artifacts require a new run. Production releases stay manual and
-separately approved.
+A merge to `master` triggers the push-only `publish.yml`, which calls that
+same reusable CI and publishes an attested, immutable GHCR image tagged with
+the **actual master merge SHA**, available at `beta.aiaiaiai.org/<full SHA>/`
+after an authorized origin cutover. A separately approved SemVer tag (`vX.Y.Z`)
+triggers an independently validated image at `aiaiaiai.org/<tag>/`. If an image
+was pushed before attestation failed, the publisher can resume without
+replacing the immutable tag, but only when the validated image ID matches.
 
-`aiaiaiai-org/infra` delivers the image on its own: **Reconcile deliveries**
-finds the image for the `master` head and verifies that this repository's
-**Publish development image** workflow attested it for that commit. Then
-**Deploy workload** activates it as workload `aiaiaiai-site`, so `/beta` follows
-within about 15 minutes. This repository holds no token, key or secret for
-infra; infra reads the package through a read-access grant in the package
-settings. The `aiaiaiai-site` contract owns placement on `edge-prod-2`, network
-`aiaiaiai-edge`, port `1927` and public host `aiaiaiai.org`. Rollbacks run in
-infra: **Deploy workload** with an earlier verified digest.
+`aiaiaiai-org/infra` verifies the exact signer (`.github/workflows/publish.yml`),
+source ref/SHA and digest before staging content in a private snapshot archive
+on `edge-dev-1`, while preserving historical version assets. Infra freezes
+legacy `edge-prod-2` automatic delivery; the old site remains rollback-only.
+The existing `nilx.one` public Caddy remains the sole 80/443 ingress. Initial
+snapshot staging, public ingress adoption and DNS cutover require separate
+operator authorization. After cutover, enable scheduled reconciler delivery
+explicitly; it advances beta/current or release/current only after checks.
 
-Deploy the workload before activating the apex edge route. DNS/TLS, an actual
-container smoke check and real-device visual/performance testing remain release
-verification obligations; local tests do not establish production readiness.
+See `docs/VERSIONED-ARTIFACTS.md` for immutable routes and release provenance.
+Real-server smoke tests, TLS and rollback checks remain required before the
+new public origin is considered live.
 
 © 2026 aiaiaiai · aiaiaiai.org

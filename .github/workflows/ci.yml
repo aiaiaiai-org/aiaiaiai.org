@@ -1,13 +1,13 @@
 # © 2026 aiaiaiai · aiaiaiai.org
 # SPDX-License-Identifier: MPL-2.0
 name: Full CI
+# Unprivileged verification only: this workflow runs on pull requests and
+# holds no write permission. Publishing lives in publish.yml, which never runs
+# on pull requests and calls this workflow for push-to-master and tag builds.
 on:
   pull_request:
-  # A merge creates a new revision; Publish development image may consume only
-  # a site-image verified for that exact master revision (see AGENTS.md).
-  push:
-    branches: [master]
   workflow_dispatch:
+  workflow_call:
 permissions:
   contents: read
 jobs:
@@ -42,11 +42,20 @@ jobs:
       - run: npm test
       - run: npx playwright install --with-deps chromium
       - run: npm run test:browser
-      - run: npm run build
+      # Root aliases are mutable, but asset URLs must bind to an immutable snapshot.
+      - name: Build path-scoped snapshot
+        env:
+          SITE_SNAPSHOT_BASE: /${{ github.ref_type == 'tag' && github.ref_name || github.sha }}
+        run: npm run build
       - name: Verify development route and temporary landing redirect
         run: |
           set -euo pipefail
           test -f dist/beta/index.html
+          # A historical snapshot must never fetch mutable root /_astro assets.
+          if grep -REn '(src|href)="/_astro/' dist --include='*.html'; then
+            echo '::error::Unversioned Astro asset URL in immutable snapshot' >&2
+            exit 1
+          fi
           grep -Fq 'id="awakening"' dist/beta/index.html
           ! grep -Fq 'id="awakening"' dist/index.html
           grep -Fq 'host beta.aiaiaiai.org' deploy/Caddyfile
@@ -89,7 +98,18 @@ jobs:
           test "$(curl --silent -o /dev/null -w '%{http_code}' http://127.0.0.1:1927/not-a-route)" = 404
       - name: Preserve the validated container
         run: docker save aiaiaiai-site:verified | gzip > site-image.tar.gz
+      - name: Bind build artifact to its exact triggering source ref
+        env:
+          SOURCE_REF: ${{ github.ref }}
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          set -Eeuo pipefail
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          jq -nc --arg ref "$SOURCE_REF" --arg sha "$SOURCE_SHA" '{ref: $ref, sha: $sha}' > site-source.json
       - uses: actions/upload-artifact@v4
         with:
           name: site-image
-          path: site-image.tar.gz
+          path: |
+            site-image.tar.gz
+            site-source.json
+          if-no-files-found: error
