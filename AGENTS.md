@@ -190,9 +190,10 @@ checks unless full CI is required.
 
 <!-- project-specific -->
 
-Repository exception: Full CI also runs on every push to `master`. A merge
-creates a new revision, and the development image may be published only from a
-`site-image` artifact verified for that exact `master` revision.
+Repository exception: Full CI also runs on every push to `master` and `vX.Y.Z`
+tags, through the privileged `publish.yml` (never on pull requests). A merge
+creates a new revision, and the image may be published only from a
+`site-image` artifact verified for that exact revision.
 
 <!-- /project-specific -->
 

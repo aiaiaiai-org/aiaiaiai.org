@@ -1,0 +1,118 @@
+# © 2026 aiaiaiai · aiaiaiai.org
+# SPDX-License-Identifier: MPL-2.0
+#
+# The only workflow that may write to GHCR or create attestations. It never
+# triggers on pull_request or workflow_dispatch, and never checks out or runs
+# pull-request code. Verification is the unprivileged Full CI (ci.yml), called
+# as a reusable workflow so the tested artifact, the source ref and the
+# attestation stay bound to this exact push (refs/heads/master or refs/tags/vX.Y.Z).
+name: Publish
+on:
+  push:
+    branches: [master]
+    tags: ['v*']
+permissions:
+  contents: read
+jobs:
+  ci:
+    name: Full CI
+    uses: ./.github/workflows/ci.yml
+    permissions:
+      contents: read
+
+  publish-beta:
+    name: Publish merge-SHA beta image
+    needs: ci
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: site-image
+          path: verified/
+      - name: Verify exact master push artifact
+        run: |
+          set -Eeuo pipefail
+          [[ "$GITHUB_SHA" =~ ^[0-9a-f]{40}$ ]]
+          test "$GITHUB_REF" = refs/heads/master
+          test "$(jq -er '.ref' verified/site-source.json)" = refs/heads/master
+          test "$(jq -er '.sha' verified/site-source.json)" = "$GITHUB_SHA"
+          test -s verified/site-image.tar.gz
+      - name: Publish immutable beta from this exact master commit
+        id: image
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          scripts/publish-verified-image.sh verified/site-image.tar.gz "ghcr.io/$GITHUB_REPOSITORY:$GITHUB_SHA"
+      # Always runs against the published digest, so re-running the job after a
+      # failed attestation completes it instead of tripping on the existing tag.
+      - name: Attest commit-bound beta provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: ${{ steps.image.outputs.name }}
+          subject-digest: ${{ steps.image.outputs.digest }}
+          push-to-registry: true
+
+  publish-release:
+    name: Publish release image
+    needs: ci
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: site-image
+          path: verified/
+      - name: Validate release ref and tested artifact
+        id: source
+        run: |
+          set -Eeuo pipefail
+          ref="$GITHUB_REF"
+          sha="$GITHUB_SHA"
+          [[ "$ref" =~ ^refs/tags/v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]
+          [[ "$sha" =~ ^[0-9a-f]{40}$ ]]
+          tag="${ref#refs/tags/}"
+          test "$(jq -er '.ref' verified/site-source.json)" = "$ref"
+          test "$(jq -er '.sha' verified/site-source.json)" = "$sha"
+          test -s verified/site-image.tar.gz
+          git fetch --no-tags origin master
+          git fetch --no-tags origin "refs/tags/$tag:refs/tags/$tag"
+          test "$(git rev-parse "refs/tags/$tag^{commit}")" = "$sha"
+          git merge-base --is-ancestor "$sha" origin/master
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+      - name: Publish exact validated release by immutable tag
+        id: image
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.source.outputs.tag }}
+        run: |
+          set -Eeuo pipefail
+          printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          scripts/publish-verified-image.sh verified/site-image.tar.gz "ghcr.io/$GITHUB_REPOSITORY:$RELEASE_TAG"
+      - name: Attest tag-bound provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: ${{ steps.image.outputs.name }}
+          subject-digest: ${{ steps.image.outputs.digest }}
+          push-to-registry: true
