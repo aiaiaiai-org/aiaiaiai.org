@@ -5,9 +5,9 @@
 # Publish the validated site image to GHCR under one immutable tag and expose
 # its digest for attestation. Safe to re-run after a partial failure:
 #   * tag absent                  -> push it;
-#   * tag present, same content   -> reuse it (an earlier run pushed the image
+#   * tag present, identical image   -> reuse it (an earlier run pushed the image
 #                                    but did not finish attesting);
-#   * tag present, other content  -> fail; an immutable tag is never overwritten;
+#   * tag present, different image  -> fail; an immutable tag is never overwritten;
 #   * registry state unprovable   -> fail rather than guess.
 #
 # Usage: publish-verified-image.sh <tarball> <image-ref>
@@ -20,14 +20,14 @@ image="${2:?usage: publish-verified-image.sh <tarball> <image-ref>}"
 local_ref="${LOCAL_IMAGE:-aiaiaiai-site:verified}"
 repository="${image%:*}"
 
-layers() { docker inspect --format '{{json .RootFS.Layers}}' "$1"; }
+image_id() { docker inspect --format '{{.Id}}' "$1"; }
 
 docker load -i "$tarball"
-expected="$(layers "$local_ref")"
+expected="$(image_id "$local_ref")"
 
 if inspection="$(docker manifest inspect "$image" 2>&1)"; then
   docker pull --quiet "$image" >/dev/null
-  if [[ "$(layers "$image")" != "$expected" ]]; then
+  if [[ "$(image_id "$image")" != "$expected" ]]; then
     echo "::error::$image already exists with different content; refusing to overwrite" >&2
     exit 1
   fi
