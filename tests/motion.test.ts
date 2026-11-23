@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { Motion, pose } from '../src/star-awakening/motion.ts';
+import { StageTimeline, pulseFrames } from '../src/star-awakening/stages.ts';
 
 function settle(motion: Motion, hz = 60) {
   for (let i = 0; i < hz * 4; i++) motion.step(1 / hz);
@@ -58,4 +59,69 @@ test('reduced motion keeps semantic depth exchange without orbit or overshoot', 
   assert.equal(motion.depth, 1);
   assert.equal(motion.compression, 0);
   assert.equal(motion.phase, 'settled');
+});
+
+test('runtime stages require evidence and preserve the agreed order', () => {
+  const timeline = new StageTimeline();
+  assert.deepEqual(
+    timeline.snapshots().map(({ id, satellite, status }) => ({
+      id,
+      satellite,
+      status,
+    })),
+    [
+      { id: 'downloading', satellite: 'blue', status: 'pending' },
+      { id: 'initializing', satellite: 'green', status: 'pending' },
+      { id: 'awakening', satellite: 'violet', status: 'pending' },
+      { id: 'study', satellite: 'amber', status: 'pending' },
+    ],
+  );
+  assert.equal(timeline.apply({ type: 'start', stage: 'study' }), false);
+  assert.equal(timeline.apply({ type: 'complete', stage: 'downloading' }), false);
+  for (const stage of [
+    'downloading',
+    'initializing',
+    'awakening',
+    'study',
+  ] as const) {
+    assert.equal(timeline.apply({ type: 'start', stage }), true);
+    assert.equal(timeline.apply({ type: 'start', stage }), false);
+    assert.equal(timeline.apply({ type: 'complete', stage }), true);
+  }
+  assert.ok(timeline.snapshots().every((stage) => stage.status === 'complete'));
+  assert.equal(timeline.apply({ type: 'start', stage: 'downloading' }), false);
+  // Inference may recur without re-downloading the model.
+  assert.equal(timeline.apply({ type: 'start', stage: 'study' }), true);
+  assert.equal(timeline.snapshots()[3]!.status, 'active');
+  assert.deepEqual(pulseFrames, [' ___', ' __', ' _', '']);
+});
+
+test('download byte counts are monotonic and failures never imply success', () => {
+  const timeline = new StageTimeline();
+  assert.equal(timeline.apply({ type: 'start', stage: 'downloading' }), true);
+  assert.equal(
+    timeline.apply({
+      type: 'progress',
+      stage: 'downloading',
+      loadedBytes: 512,
+      totalBytes: 1024,
+    }),
+    true,
+  );
+  assert.equal(
+    timeline.apply({
+      type: 'progress',
+      stage: 'downloading',
+      loadedBytes: 128,
+      totalBytes: 1024,
+    }),
+    false,
+  );
+  assert.equal(
+    timeline.apply({ type: 'fail', stage: 'downloading', error: 'network' }),
+    true,
+  );
+  assert.equal(timeline.snapshots()[0]!.status, 'failed');
+  assert.equal(timeline.apply({ type: 'start', stage: 'initializing' }), false);
+  assert.equal(timeline.apply({ type: 'complete', stage: 'downloading' }), false);
 });

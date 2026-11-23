@@ -103,7 +103,16 @@ A tap/click on the central star MUST initiate a **geometric 3D reordering**, not
 | Satellite 3 | Green | saturated translucent green | Color family agreed; exact value OPEN |
 | Satellite 4 | Violet | rich translucent purple | Color family agreed; exact value OPEN |
 
-**Important:** Association of a *specific technical stage* with each color is **provisional** until the model/runtime contract is chosen. Assign stable `satelliteId` and `colorId` now; map runtime stages separately so the scene does not hard-code provider behavior.
+**Updated decision — 23 November 2026:** Stable sphere-to-stage mapping is now fixed independently of the model provider:
+
+| Sequence | Runtime stage | Sphere | Meaning |
+| --- | --- | --- | --- |
+| 1 | `downloading` | Blue | Actual transfer or cache retrieval of model artifacts |
+| 2 | `initializing` | Green | Runtime construction and model/GPU memory initialization |
+| 3 | `awakening` | Violet | Real warmup and inference readiness checks |
+| 4 | `study` | Amber | Actual inference/analysis after the runtime becomes ready; repeatable for each user request |
+
+Stages 1–3 prepare the runtime; **Study is work performed after readiness, not a fourth initialization step**. A stage changes from pending to active/complete/failed only on an actual runtime event. The active label cycles `study ___ → study __ → study _ → study` (and the corresponding label for other active stages); its animation is **not** a progress percentage. Actual byte counts are optional for downloading, and no completion, readiness or colors may be simulated. The preview has no model adapter connected yet, so no stage starts on its own. The eventual adapter must verify capability, disclose large downloads and obtain consent where required before requesting assets.
 
 Recommended rendering states for every satellite:
 
@@ -120,11 +129,13 @@ The color pulse must be subtle during work; the material-color transformation is
 
 **OPEN:** exact WebLLM library, model, model size, supported hardware, worker arrangement, cache strategy, deployment target and the post-ready interaction.
 
-Proposed semantic phases (**not yet binding provider-specific steps**):
-1. `environment` — capability/runtime availability, including 3D and compute support.
-2. `assets` — real model/resource fetching and, when relevant, network connection.
-3. `initialize` — actual runtime, worker, GPU/WASM and model initialization.
-4. `optimize` — genuine warmup/preparation until usable.
+Runtime stage order (fixed on 23 November 2026):
+1. `downloading` — measured asset retrieval or verified cache availability.
+2. `initializing` — real runtime and model resource initialization.
+3. `awakening` — real warmup and readiness verification.
+4. `study` — real inference, repeatable without repeating stages 1–3.
+
+Environment/capability checks are prerequisites to these stages, **not** a simulated fifth or first sphere. A failed stage cannot unlock a later one. No model is yet selected or downloaded by the preview.
 
 The UI MUST subscribe to actual events and measured outcomes; it MUST NOT display simulated progress as real status. Some runtime work may overlap or have fewer/more events than four phases; a dedicated adapter should normalize raw events into four **meaningful** satellite responsibilities, document the mapping, and avoid claims unsupported by the chosen runtime. The phase model can be revised when the provider is selected, preserving four visible spheres.
 

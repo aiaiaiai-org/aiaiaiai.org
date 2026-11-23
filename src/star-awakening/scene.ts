@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MPL-2.0
 import * as THREE from 'three';
 import { Motion, pose, satelliteIds } from './motion';
+import { stageDefinitions, type StageSnapshot } from './stages';
 
 export function createScene(
   host: HTMLElement,
@@ -62,8 +63,15 @@ export function createScene(
   star.name = 'star';
   star.castShadow = star.receiveShadow = true;
   scene.add(star);
-  const satellites = satelliteIds.map((id) => {
-    const sphere = new THREE.Mesh(geometry, material);
+  // Each sphere has its own material, so no stage can tint its neighbors.
+  const satelliteMaterials = satelliteIds.map(() => material.clone());
+  const satelliteColors = satelliteIds.map(
+    (id) =>
+      new THREE.Color(stageDefinitions.find((stage) => stage.satellite === id)!.color),
+  );
+  const neutralColor = new THREE.Color('#eeeee9');
+  const satellites = satelliteIds.map((id, index) => {
+    const sphere = new THREE.Mesh(geometry, satelliteMaterials[index]!);
     sphere.name = id;
     sphere.scale.setScalar(0.34);
     sphere.castShadow = sphere.receiveShadow = true;
@@ -105,8 +113,24 @@ export function createScene(
     camera.updateProjectionMatrix();
     renderer.setSize(width, height);
   }
-  function render(time: number) {
+  function render(time: number, stages: readonly StageSnapshot[], reduced: boolean) {
     const positions = pose(motion.depth, time);
+    satelliteIds.forEach((id, index) => {
+      const material = satelliteMaterials[index]!;
+      const stage = stages.find((item) => item.satellite === id);
+      const color = satelliteColors[index]!;
+      const targetColor =
+        stage?.status === 'complete' ? color : neutralColor;
+      if (reduced) material.color.copy(targetColor);
+      else material.color.lerp(targetColor, 0.12);
+      if (stage?.status === 'active') {
+        material.emissive.copy(color);
+        material.emissiveIntensity =
+          reduced ? 0.08 : 0.055 + 0.03 * (1 + Math.sin(time * 2.5));
+      } else {
+        material.emissiveIntensity = 0;
+      }
+    });
     star.position.z = positions.starZ - motion.compression * 0.12;
     star.scale.set(
       0.94 + motion.compression * 0.035,
@@ -149,6 +173,7 @@ export function createScene(
     dispose() {
       geometry.dispose();
       material.dispose();
+      satelliteMaterials.forEach((material) => material.dispose());
       texture.dispose();
       backdropGeometry.dispose();
       backdropMaterial.dispose();

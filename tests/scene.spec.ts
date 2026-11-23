@@ -198,4 +198,68 @@ test('scene long-press region disables selection without blanking status text', 
     'user-select',
     'none',
   );
+
+test('stage spheres only advance from explicit runtime signals', async ({
+  page,
+  isMobile,
+}) => {
+  await page.goto('/');
+  const target = page.getByRole('button', { name: 'Awaken the star' });
+  if (isMobile) await target.tap();
+  else await target.click();
+  const stage = (id: string) =>
+    page.locator(`.stage-track [data-stage="${id}"]`);
+  await expect(stage('downloading')).toHaveAttribute('data-status', 'pending');
+  await page.evaluate(() =>
+    (
+      window as unknown as Window & {
+        __awakening: {
+          emitStage: (event: { type: string; stage: string }) => void;
+        };
+      }
+    ).__awakening.emitStage({ type: 'start', stage: 'study' }),
+  );
+  await expect(stage('study')).toHaveAttribute('data-status', 'pending');
+  for (const id of [
+    'downloading',
+    'initializing',
+    'awakening',
+    'study',
+  ]) {
+    await page.evaluate((stageId) => {
+      const api = (
+        window as unknown as Window & {
+          __awakening: {
+            emitStage: (event: { type: string; stage: string }) => void;
+          };
+        }
+      ).__awakening;
+      api.emitStage({ type: 'start', stage: stageId });
+    }, id);
+    await expect(stage(id)).toHaveAttribute('data-status', 'active');
+    await page.evaluate((stageId) => {
+      const api = (
+        window as unknown as Window & {
+          __awakening: {
+            emitStage: (event: { type: string; stage: string }) => void;
+          };
+        }
+      ).__awakening;
+      api.emitStage({ type: 'complete', stage: stageId });
+    }, id);
+    await expect(stage(id)).toHaveAttribute('data-status', 'complete');
+  }
+  await expect(page.getByRole('status')).toHaveText('study complete.');
+  await expect(stage('study')).toHaveText('study');
+  // Only study can recur after the setup has completed.
+  await page.evaluate(() =>
+    (
+      window as unknown as Window & {
+        __awakening: {
+          emitStage: (event: { type: string; stage: string }) => void;
+        };
+      }
+    ).__awakening.emitStage({ type: 'start', stage: 'study' }),
+  );
+  await expect(stage('study')).toHaveText('study ___');
 });
