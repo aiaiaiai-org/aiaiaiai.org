@@ -198,6 +198,7 @@ test('scene long-press region disables selection without blanking status text', 
     'user-select',
     'none',
   );
+});
 
 test('stage spheres only advance from explicit runtime signals', async ({
   page,

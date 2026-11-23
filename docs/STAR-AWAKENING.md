@@ -14,9 +14,10 @@ The user touches a central **star**. The interaction causes a perceptible, physi
 
 This document records the decisions from the 26 October 2026 design discussion and provides a handoff contract for engineers and other AI agents.
 
-**Design requirements** here supersede the previous *pure-white initial-interface direction* in [CONCEPT.md](CONCEPT.md) **for the eventual Star Awakening experience**. They do **not** authorize shipping an unfinished animated loader, changing the production website immediately, selecting a particular language model, or deploying without approval. The white baseline may remain in production until a complete functional experience passes release gates.
+**Design requirements** here supersede the previous _pure-white initial-interface direction_ in [CONCEPT.md](CONCEPT.md) **for the eventual Star Awakening experience**. They do **not** authorize shipping an unfinished animated loader, changing the production website immediately, selecting a particular language model, or deploying without approval. The white baseline may remain in production until a complete functional experience passes release gates.
 
 Interpretation:
+
 - **MUST** / **MUST NOT**: agreed behavior or project boundary.
 - **SHOULD**: recommended implementation behavior, alterable with an explicit rationale.
 - **OPEN**: decision not yet made; do not invent an answer and present it as settled.
@@ -24,6 +25,7 @@ Interpretation:
 ## 2. Reference interpretation
 
 Two visual references were supplied during the design conversation:
+
 1. A white, nearly monochrome orbital composition: a large central sphere, smaller satellites, understated orbital outlines, and a tactile, softly lit surface. The picture is **visual inspiration**, not an exact layout or approved existing UI.
 2. Four translucent, materially colored `ai` marks: **orange/amber, blue, green, violet**. They define the four satellite color identities. The original illustration does not require the scene to reproduce the letterforms.
 
@@ -42,6 +44,7 @@ The composition and interaction described in this document, **not the pixels of 
 ### 3.2 Five spheres — invariant
 
 The primary composition MUST contain **exactly five principal spheres**:
+
 - **1 larger central star**: the user's entry target and visual anchor.
 - **4 smaller satellites** arranged around it in 3D, initially visually subordinate or behind the star.
 
@@ -51,7 +54,7 @@ Orbital guidelines, light halos and shadows are supporting rendering features, *
 
 - The base look is **soft polymer / ceramic / translucent plastic**, not flat CSS circles, hard chrome or jelly.
 - Apply believable, coordinated specular response, depth cues, light gradients, contact softness and occlusion.
-- Colors should look like they exist *within the object's material* (tinted volume / reflected or internal light), not an abrupt 2D overlay.
+- Colors should look like they exist _within the object's material_ (tinted volume / reflected or internal light), not an abrupt 2D overlay.
 - Avoid excessive bloom, saturated glow, thick glass distortion or distracting particle effects.
 - On mobile, scale the scene to the viewport without clipping the interactive target or requiring horizontal scroll.
 
@@ -96,32 +99,32 @@ A tap/click on the central star MUST initiate a **geometric 3D reordering**, not
 
 ## 5. Satellite identity and color behavior
 
-| Stable satellite | Color identity | Candidate tone | Status |
-| --- | --- | --- | --- |
-| Satellite 1 | Amber/orange | warm translucent amber | Color family agreed; exact value OPEN |
-| Satellite 2 | Blue | deep luminous blue | Color family agreed; exact value OPEN |
-| Satellite 3 | Green | saturated translucent green | Color family agreed; exact value OPEN |
-| Satellite 4 | Violet | rich translucent purple | Color family agreed; exact value OPEN |
+| Stable satellite | Color identity | Candidate tone              | Status                                |
+| ---------------- | -------------- | --------------------------- | ------------------------------------- |
+| Satellite 1      | Amber/orange   | warm translucent amber      | Color family agreed; exact value OPEN |
+| Satellite 2      | Blue           | deep luminous blue          | Color family agreed; exact value OPEN |
+| Satellite 3      | Green          | saturated translucent green | Color family agreed; exact value OPEN |
+| Satellite 4      | Violet         | rich translucent purple     | Color family agreed; exact value OPEN |
 
 **Updated decision — 23 November 2026:** Stable sphere-to-stage mapping is now fixed independently of the model provider:
 
-| Sequence | Runtime stage | Sphere | Meaning |
-| --- | --- | --- | --- |
-| 1 | `downloading` | Blue | Actual transfer or cache retrieval of model artifacts |
-| 2 | `initializing` | Green | Runtime construction and model/GPU memory initialization |
-| 3 | `awakening` | Violet | Real warmup and inference readiness checks |
-| 4 | `study` | Amber | Indefinite operating phase after verified readiness; accepts requests without completing |
+| Sequence | Runtime stage  | Sphere | Meaning                                                                                  |
+| -------- | -------------- | ------ | ---------------------------------------------------------------------------------------- |
+| 1        | `downloading`  | Blue   | Actual transfer or cache retrieval of model artifacts                                    |
+| 2        | `initializing` | Green  | Runtime construction and model/GPU memory initialization                                 |
+| 3        | `awakening`    | Violet | Real warmup and inference readiness checks                                               |
+| 4        | `study`        | Amber  | Indefinite operating phase after verified readiness; accepts requests without completing |
 
 Stages 1–3 prepare the runtime; **Study is an indefinite operating state**, entered automatically after real `awakening` completion. It never becomes `complete` and never restarts for individual requests; it remains active until runtime failure or shutdown. An active Study state is **not evidence that inference is continuously running**: requests and responses are separate runtime activity within this state. A stage changes status only on actual runtime evidence. The active label cycles `study ___ → study __ → study _ → study` (and the corresponding label for other active stages); its animation is **not** a progress percentage. Actual byte counts are optional for downloading, and no completion, readiness or colors may be simulated. The preview has no model adapter connected yet, so no stage starts on its own. The eventual adapter must verify capability, disclose large downloads and obtain consent where required before requesting assets.
 
 Recommended rendering states for every satellite:
 
-| Stage status | Visual behavior |
-| --- | --- |
-| `pending` | Nearly white, subdued material, low activity |
-| `active` | Slight colored back-glow pulsing behind the sphere; readable progress if known |
-| `complete` | Gradual material tint into the assigned color, remains colored |
-| `failed` | Motion settles; accessible error indication and recovery action, never false completion |
+| Stage status | Visual behavior                                                                         |
+| ------------ | --------------------------------------------------------------------------------------- |
+| `pending`    | Nearly white, subdued material, low activity                                            |
+| `active`     | Slight colored back-glow pulsing behind the sphere; readable progress if known          |
+| `complete`   | Gradual material tint into the assigned color, remains colored                          |
+| `failed`     | Motion settles; accessible error indication and recovery action, never false completion |
 
 The color pulse must be subtle during work; the material-color transformation is the meaningful success signal. Avoid assigning arbitrary fake completion percentages.
 
@@ -130,6 +133,7 @@ The color pulse must be subtle during work; the material-color transformation is
 **OPEN:** exact WebLLM library, model, model size, supported hardware, worker arrangement, cache strategy, deployment target and the post-ready interaction.
 
 Runtime stage order (fixed on 23 November 2026):
+
 1. `downloading` — measured asset retrieval or verified cache availability.
 2. `initializing` — real runtime and model resource initialization.
 3. `awakening` — real warmup and readiness verification.
@@ -142,20 +146,11 @@ The UI MUST subscribe to actual events and measured outcomes; it MUST NOT displa
 Suggested UI-facing types (illustrative, aligned with the stage timeline; not an approved public API):
 
 ```ts
-type SatelliteId = "amber" | "blue" | "green" | "violet";
-type StageId =
-  | "downloading"
-  | "initializing"
-  | "awakening"
-  | "study";
-type StageStatus = "pending" | "active" | "complete" | "failed";
+type SatelliteId = 'amber' | 'blue' | 'green' | 'violet';
+type StageId = 'downloading' | 'initializing' | 'awakening' | 'study';
+type StageStatus = 'pending' | 'active' | 'complete' | 'failed';
 type ScenePhase =
-  | "idle"
-  | "pressing"
-  | "transitioning"
-  | "loading"
-  | "ready"
-  | "error";
+  'idle' | 'pressing' | 'transitioning' | 'loading' | 'ready' | 'error';
 
 type StageSnapshot = {
   id: StageId;
@@ -174,6 +169,7 @@ If the runtime requires large downloads, the product should disclose their appro
 ## 7. Rendering and implementation boundaries
 
 **Architecture direction (provisional, consistent with previous stack discussion):**
+
 - **Astro + TypeScript** as the lightweight document/application shell.
 - **Real Three.js 3D scene** for geometry, depth, light, camera, orbit and material behavior. React Three Fiber is an option if justified by component complexity; avoid making React a site-wide requirement without a reason.
 - A spring-based motion controller can deliver convincing physical response without immediately installing a rigid-body engine.
@@ -209,6 +205,7 @@ This is an organizational suggestion, not a command to create the entire tree in
 ## 9. Explicit non-goals and unresolved decisions
 
 Not in scope for this design-contract PR:
+
 - Selecting or bundling a specific WebLLM model.
 - Implementing 3D, WebGPU, shaders, model downloads, or a production deployment.
 - Adding conventional marketing sections, a product directory or unfinished portals.
@@ -216,6 +213,7 @@ Not in scope for this design-contract PR:
 - Choosing final camera coordinates, spring constants, object radii, duration timings, noise maps, typography placements or shader implementations without prototypes and testing.
 
 Open decisions for follow-up:
+
 - Exact model/provider, maximum resource footprint and user consent/size disclosure.
 - True device support matrix, WebGL/WebGPU strategy and accessible fallback design.
 - The four actual stage-to-satellite mappings and whether stages may finish out of order.
