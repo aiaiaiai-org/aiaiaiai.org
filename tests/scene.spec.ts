@@ -261,5 +261,6 @@ test('stage spheres only advance from explicit runtime signals', async ({
       }
     ).__awakening.emitStage({ type: 'start', stage: 'study' }),
   );
-  await expect(stage('study')).toHaveText('study ___');
+  await expect(stage('study')).toHaveAttribute('data-status', 'active');
+  await expect(stage('study')).toContainText('study');
 });

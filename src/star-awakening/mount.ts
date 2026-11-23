@@ -115,7 +115,8 @@ export function mount(root: HTMLElement, runtime?: RuntimeStageSource) {
           ? 'Runtime ready for study.'
           : event.stage + ' complete.';
     } else if (event.type === 'fail') {
-      status.textContent = event.stage + ' failed: ' + event.error;
+      // Provider errors may contain secrets or private identifiers.
+      status.textContent = event.stage + ' failed. Reload to try again.';
       reset.textContent = 'Reload preview';
       reset.hidden = false;
     }

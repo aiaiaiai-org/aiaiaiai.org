@@ -82,13 +82,16 @@ export class StageTimeline {
     if (event.type === 'progress') {
       const previous = current.loadedBytes ?? 0;
       const { loadedBytes, totalBytes } = event;
+      const effectiveTotal = totalBytes ?? current.totalBytes;
       if (
         !Number.isSafeInteger(loadedBytes) ||
         loadedBytes < previous ||
         (totalBytes !== undefined &&
           (!Number.isSafeInteger(totalBytes) ||
             totalBytes <= 0 ||
-            totalBytes < loadedBytes))
+            (current.totalBytes !== undefined &&
+              totalBytes < current.totalBytes))) ||
+        (effectiveTotal !== undefined && loadedBytes > effectiveTotal)
       )
         return false;
       this.states.downloading = {

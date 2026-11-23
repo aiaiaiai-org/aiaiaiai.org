@@ -66,8 +66,10 @@ export function createScene(
   // Each sphere has its own material, so no stage can tint its neighbors.
   const satelliteMaterials = satelliteIds.map(() => material.clone());
   const satelliteColors = satelliteIds.map(
-    (id) =>
-      new THREE.Color(stageDefinitions.find((stage) => stage.satellite === id)!.color),
+    (id) => {
+      const stage = stageDefinitions.find((stage) => stage.satellite === id)!;
+      return new THREE.Color(stage.color);
+    },
   );
   const neutralColor = new THREE.Color('#eeeee9');
   const satellites = satelliteIds.map((id, index) => {
