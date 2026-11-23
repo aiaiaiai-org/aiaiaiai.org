@@ -150,9 +150,7 @@ test('mobile pull fades the status and restores it on release', async ({
                   clientY: y,
                 }),
               ];
-        element.dispatchEvent(
-          new TouchEvent(type, { bubbles: true, touches }),
-        );
+        element.dispatchEvent(new TouchEvent(type, { bubbles: true, touches }));
       },
       { type, y },
     );
