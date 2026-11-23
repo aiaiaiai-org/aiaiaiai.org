@@ -207,6 +207,10 @@ Open decisions for follow-up:
 
 ## 10. Handoff and incremental PR plan
 
+Future satellite camera focus, reference-frame rules, and any N-body physics
+boundaries are specified separately in [SPHERE-FOCUS.md](SPHERE-FOCUS.md)
+(proposed contract only; **not implemented**).
+
 1. **Documentation (this PR):** preserve the decisions and resolve the apparent conflict with White Canvas. No runtime changes.
 2. **Scene foundation:** actual camera, materials, lighting, a large star, four satellites, correct depth and responsive composition. Development/preview only; no pretend public interactions.
 3. **Physical input and transition:** contact/compression/release, spring Z-transfer, occlusion, orbital motion, pointer/keyboard and reduced-motion behavior. Test the real geometry changes, not only opacity.

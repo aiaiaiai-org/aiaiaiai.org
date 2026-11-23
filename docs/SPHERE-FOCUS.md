@@ -1,7 +1,8 @@
 # Sphere Focus — physical reference frame and camera contract
 
 **Status:** Design contract for a future implementation; **not implemented**  
-**Decision:** 23 November 2026  
+**Proposed contract:** 23 November 2026 (not a ratified product decision; N-body
+parameters in §2 remain engineering candidates)  
 **Scope:** Five-body Star Awakening scene on aiaiaiai.org  
 **Related contract:** [STAR-AWAKENING.md](STAR-AWAKENING.md)
 
@@ -10,9 +11,9 @@
 After the initial star activation, tapping any of the four satellites selects that
 sphere as the **visual frame of reference**. The camera eases toward a framing
 in which the selected satellite occupies the center of the viewport. The central
-star keeps spinning, and all bodies keep moving along the same trajectories
-they would follow without a selection. Their apparent motion is now observed
-relative to the selected sphere. Selecting another satellite changes the
+star continues its authored motion, and all bodies keep moving along the same
+trajectories they would follow without a selection. Their apparent motion is now
+observed relative to the selected sphere. Selecting another satellite changes the
 observer, **not the physical center of attraction**.
 
 This must never be implemented by reparenting the other meshes to the
