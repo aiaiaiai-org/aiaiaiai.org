@@ -110,9 +110,9 @@ A tap/click on the central star MUST initiate a **geometric 3D reordering**, not
 | 1 | `downloading` | Blue | Actual transfer or cache retrieval of model artifacts |
 | 2 | `initializing` | Green | Runtime construction and model/GPU memory initialization |
 | 3 | `awakening` | Violet | Real warmup and inference readiness checks |
-| 4 | `study` | Amber | Actual inference/analysis after the runtime becomes ready; repeatable for each user request |
+| 4 | `study` | Amber | Indefinite operating phase after verified readiness; accepts requests without completing |
 
-Stages 1–3 prepare the runtime; **Study is work performed after readiness, not a fourth initialization step**. A stage changes from pending to active/complete/failed only on an actual runtime event. The active label cycles `study ___ → study __ → study _ → study` (and the corresponding label for other active stages); its animation is **not** a progress percentage. Actual byte counts are optional for downloading, and no completion, readiness or colors may be simulated. The preview has no model adapter connected yet, so no stage starts on its own. The eventual adapter must verify capability, disclose large downloads and obtain consent where required before requesting assets.
+Stages 1–3 prepare the runtime; **Study is an indefinite operating state**, entered automatically after real `awakening` completion. It never becomes `complete` and never restarts for individual requests; it remains active until runtime failure or shutdown. An active Study state is **not evidence that inference is continuously running**: requests and responses are separate runtime activity within this state. A stage changes status only on actual runtime evidence. The active label cycles `study ___ → study __ → study _ → study` (and the corresponding label for other active stages); its animation is **not** a progress percentage. Actual byte counts are optional for downloading, and no completion, readiness or colors may be simulated. The preview has no model adapter connected yet, so no stage starts on its own. The eventual adapter must verify capability, disclose large downloads and obtain consent where required before requesting assets.
 
 Recommended rendering states for every satellite:
 
@@ -133,7 +133,7 @@ Runtime stage order (fixed on 23 November 2026):
 1. `downloading` — measured asset retrieval or verified cache availability.
 2. `initializing` — real runtime and model resource initialization.
 3. `awakening` — real warmup and readiness verification.
-4. `study` — real inference, repeatable without repeating stages 1–3.
+4. `study` — persistent operating state after verified readiness; individual inference requests do not end or restart it.
 
 Environment/capability checks are prerequisites to these stages, **not** a simulated fifth or first sphere. A failed stage cannot unlock a later one. No model is yet selected or downloaded by the preview.
 

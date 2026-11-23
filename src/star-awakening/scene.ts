@@ -122,7 +122,10 @@ export function createScene(
       const stage = stages.find((item) => item.satellite === id);
       const color = satelliteColors[index]!;
       const targetColor =
-        stage?.status === 'complete' ? color : neutralColor;
+        stage?.status === 'complete' ||
+        (stage?.id === 'study' && stage.status === 'active')
+          ? color
+          : neutralColor;
       if (reduced) material.color.copy(targetColor);
       else material.color.lerp(targetColor, 0.12);
       if (stage?.status === 'active') {

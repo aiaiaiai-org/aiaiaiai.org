@@ -112,7 +112,7 @@ export function mount(root: HTMLElement, runtime?: RuntimeStageSource) {
     } else if (event.type === 'complete') {
       status.textContent =
         event.stage === 'awakening'
-          ? 'Runtime ready for study.'
+          ? 'Runtime ready. Study remains active.'
           : event.stage + ' complete.';
     } else if (event.type === 'fail') {
       // Provider errors may contain secrets or private identifiers.

@@ -60,10 +60,10 @@ export class StageTimeline {
     const current = this.states[event.stage];
     if (event.type === 'start') {
       const index = stageDefinitions.findIndex(({ id }) => id === event.stage);
-      // Study alone can restart for a subsequent inference request.
+      // Study starts automatically after verified awakening and never restarts.
       if (
-        (current.status !== 'pending' &&
-          !(event.stage === 'study' && current.status === 'complete')) ||
+        current.status !== 'pending' ||
+        event.stage === 'study' ||
         stageDefinitions
           .slice(0, index)
           .some(({ id }) => this.states[id].status !== 'complete')
@@ -111,7 +111,15 @@ export class StageTimeline {
       return true;
     }
 
+    // The final operating state cannot complete, even after many requests.
+    if (event.stage === 'study') return false;
     this.states[event.stage] = { ...current, status: 'complete' };
+    if (event.stage === 'awakening') {
+      this.states.study = {
+        ...this.states.study,
+        status: 'active',
+      };
+    }
     return true;
   }
 }

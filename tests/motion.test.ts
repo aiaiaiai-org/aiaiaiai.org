@@ -82,18 +82,31 @@ test('runtime stages require evidence and preserve the agreed order', () => {
     'downloading',
     'initializing',
     'awakening',
-    'study',
   ] as const) {
     assert.equal(timeline.apply({ type: 'start', stage }), true);
     assert.equal(timeline.apply({ type: 'start', stage }), false);
     assert.equal(timeline.apply({ type: 'complete', stage }), true);
   }
-  assert.ok(timeline.snapshots().every((stage) => stage.status === 'complete'));
+  assert.deepEqual(
+    timeline.snapshots().map((stage) => stage.status),
+    ['complete', 'complete', 'complete', 'active'],
+  );
   assert.equal(timeline.apply({ type: 'start', stage: 'downloading' }), false);
-  // Inference may recur without re-downloading the model.
-  assert.equal(timeline.apply({ type: 'start', stage: 'study' }), true);
+  assert.equal(timeline.apply({ type: 'start', stage: 'study' }), false);
+  // Study never completes or restarts after an inference request.
+  assert.equal(timeline.apply({ type: 'complete', stage: 'study' }), false);
   assert.equal(timeline.snapshots()[3]!.status, 'active');
   assert.deepEqual(pulseFrames, [' ___', ' __', ' _', '']);
+  assert.equal(
+    timeline.apply({
+      type: 'fail',
+      stage: 'study',
+      error: 'runtime unavailable',
+    }),
+    true,
+  );
+  assert.equal(timeline.snapshots()[3]!.status, 'failed');
+  assert.equal(timeline.apply({ type: 'start', stage: 'study' }), false);
 });
 
 test('download byte counts are monotonic and failures never imply success', () => {
