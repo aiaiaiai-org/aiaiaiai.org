@@ -2,14 +2,28 @@
 // SPDX-License-Identifier: MPL-2.0
 import { Motion } from './motion';
 import { createScene } from './scene';
+import {
+  StageTimeline,
+  pulseFrames,
+  type RuntimeStageSource,
+  type StageEvent,
+} from './stages';
 import './style.css';
 
-export function mount(root: HTMLElement) {
+export function mount(root: HTMLElement, runtime?: RuntimeStageSource) {
   const target = root.querySelector<HTMLButtonElement>('.star-target')!;
   const status = root.querySelector<HTMLElement>('[role=status]')!;
   const reset = root.querySelector<HTMLButtonElement>('.reset')!;
   const events = new AbortController();
   const motion = new Motion();
+  const stages = new StageTimeline();
+  const stageLabels = Array.from(
+    root.querySelectorAll<HTMLElement>('.stage-track [data-stage]'),
+  );
+  let runtimeStarted = false;
+  let unsubscribe: (() => void) | null = null;
+  let stageTimer: number | null = null;
+  let stageFrame = 0;
   let frame = 0;
   let last = 0;
   let time = 0;
@@ -44,7 +58,11 @@ export function mount(root: HTMLElement) {
     last = now;
     if (!reduced.matches) time += dt;
     motion.step(dt, reduced.matches);
-    scene.render(reduced.matches ? 0 : time);
+    scene.render(
+      reduced.matches ? 0 : time,
+      stages.snapshots(),
+      reduced.matches,
+    );
     update();
     if (!reduced.matches || motion.moving) frame = requestAnimationFrame(tick);
   }
@@ -59,11 +77,92 @@ export function mount(root: HTMLElement) {
     update();
     wake();
   }
+  function drawStages() {
+    const active = stages
+      .snapshots()
+      .find((stage) => stage.status === 'active');
+    for (const stage of stages.snapshots()) {
+      const node = stageLabels.find((item) => item.dataset.stage === stage.id);
+      if (!node) continue;
+      node.dataset.status = stage.status;
+      const suffix =
+        active?.id === stage.id && !reduced.matches
+          ? pulseFrames[stageFrame]
+          : '';
+      node.textContent = stage.id + suffix;
+    }
+  }
+  function restartStageCycle() {
+    if (stageTimer !== null) window.clearInterval(stageTimer);
+    stageTimer = null;
+    stageFrame = 0;
+    drawStages();
+    if (
+      !disposed &&
+      !failed &&
+      !document.hidden &&
+      !reduced.matches &&
+      stages.snapshots().some((stage) => stage.status === 'active')
+    ) {
+      stageTimer = window.setInterval(() => {
+        stageFrame = (stageFrame + 1) % pulseFrames.length;
+        drawStages();
+      }, 420);
+    }
+  }
+  function markRuntimeFailed(message: string) {
+    failed = true;
+    root.dataset.failed = 'true';
+    target.disabled = true;
+    if (stageTimer !== null) window.clearInterval(stageTimer);
+    stageTimer = null;
+    cancelAnimationFrame(frame);
+    frame = 0;
+    unsubscribe?.();
+    unsubscribe = null;
+    // Provider errors may contain secrets or private identifiers.
+    status.textContent = message;
+    reset.textContent = 'Reload preview';
+    reset.hidden = false;
+    update();
+  }
+  function onStageEvent(event: StageEvent) {
+    if (!runtimeStarted || failed || disposed || !stages.apply(event)) return;
+    restartStageCycle();
+    if (event.type === 'start') {
+      status.textContent = event.stage + ' started.';
+    } else if (event.type === 'complete') {
+      status.textContent =
+        event.stage === 'awakening'
+          ? 'Runtime ready. Study remains active.'
+          : event.stage + ' complete.';
+    } else if (event.type === 'fail') {
+      markRuntimeFailed(event.stage + ' failed. Reload to try again.');
+      return;
+    }
+    // Progress bytes are recorded, not converted into invented percentages.
+    wake();
+  }
+  function runtimeFailure(error: unknown) {
+    console.error('Model runtime could not start', error);
+    markRuntimeFailed('Model runtime could not start. Reload to try again.');
+  }
   function activate() {
     if (failed || disposed || !motion.activate()) return;
+    runtimeStarted = true;
     status.textContent =
       'Spatial transition activated. No model runtime is connected; no download has started.';
+    if (runtime) {
+      try {
+        unsubscribe = runtime.subscribe(onStageEvent);
+        // No assets or compute are requested until the user activates the star.
+        void runtime.start().catch(runtimeFailure);
+      } catch (error) {
+        runtimeFailure(error);
+      }
+    }
     update();
+    restartStageCycle();
     wake();
   }
   // iOS elastic overscroll can move the viewport while scrollY stays zero.
@@ -209,10 +308,18 @@ export function mount(root: HTMLElement) {
       frame = 0;
       last = 0;
       cancel();
+      restartStageCycle();
     },
     options,
   );
-  reduced.addEventListener('change', wake, options);
+  reduced.addEventListener(
+    'change',
+    () => {
+      restartStageCycle();
+      wake();
+    },
+    options,
+  );
   const resize = new ResizeObserver(() => {
     scene.resize();
     wake();
@@ -240,6 +347,8 @@ export function mount(root: HTMLElement) {
   function dispose() {
     disposed = true;
     cancelAnimationFrame(frame);
+    if (stageTimer !== null) window.clearInterval(stageTimer);
+    unsubscribe?.();
     resize.disconnect();
     events.abort();
     scene.dispose();
@@ -252,12 +361,24 @@ export function mount(root: HTMLElement) {
   });
   if (import.meta.env.DEV)
     (window as PreviewWindow).__awakening = {
-      inspect: () => ({ phase: motion.phase, ...scene.inspect() }),
+      inspect: () => ({
+        phase: motion.phase,
+        ...scene.inspect(),
+        stages: stages.snapshots(),
+      }),
+      // Deterministic fixture available only on the local DEV preview.
+      emitStage: onStageEvent,
     };
   if (import.meta.hot) import.meta.hot.dispose(dispose);
   update();
+  drawStages();
   wake();
   return dispose;
 }
 
-type PreviewWindow = Window & { __awakening?: { inspect: () => unknown } };
+type PreviewWindow = Window & {
+  __awakening?: {
+    inspect: () => unknown;
+    emitStage: (event: StageEvent) => void;
+  };
+};

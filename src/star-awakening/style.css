@@ -60,6 +60,49 @@
 #awakening[data-failed] .cue {
   opacity: 0;
 }
+.stage-track {
+  position: absolute;
+  z-index: 1;
+  top: max(52px, calc(env(safe-area-inset-top) + 28px));
+  left: 24px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  line-height: 1.9;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 350ms ease;
+}
+#awakening[data-phase='transitioning'] .stage-track,
+#awakening[data-phase='settled'] .stage-track {
+  opacity: 1;
+}
+.stage-track li {
+  opacity: 0.4;
+  white-space: pre;
+}
+.stage-track li[data-status='active'],
+.stage-track li[data-status='failed'],
+.stage-track li[data-status='complete'] {
+  opacity: 1;
+}
+.stage-track [data-stage='downloading'][data-status='complete'] {
+  color: #5176be;
+}
+.stage-track [data-stage='initializing'][data-status='complete'] {
+  color: #3d8864;
+}
+.stage-track [data-stage='awakening'][data-status='complete'] {
+  color: #8062b9;
+}
+.stage-track [data-stage='study'][data-status='active'] {
+  color: #ab7635;
+}
+.stage-track li[data-status='failed'] {
+  color: #a54242;
+}
 .preview-note {
   position: absolute;
   z-index: 1;

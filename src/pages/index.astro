@@ -36,8 +36,22 @@ const preview = import.meta.env.DEV;
   <body>
     {preview && (
       <main id="awakening" aria-label="Star Awakening interaction preview">
-        <div class="preview-note">aiaiaiai · interaction study</div>
+        <div class="preview-note">aiaiaiai · interaction preview</div>
         <div class="scene" aria-hidden="true"></div>
+        <ol class="stage-track" aria-label="AI runtime stages">
+          <li data-stage="downloading" data-status="pending">
+            downloading
+          </li>
+          <li data-stage="initializing" data-status="pending">
+            initializing
+          </li>
+          <li data-stage="awakening" data-status="pending">
+            awakening
+          </li>
+          <li data-stage="study" data-status="pending">
+            study
+          </li>
+        </ol>
         <button
           class="star-target"
           aria-label="Awaken the star"

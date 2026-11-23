@@ -199,3 +199,96 @@ test('scene long-press region disables selection without blanking status text', 
     'none',
   );
 });
+
+test('stage spheres only advance from explicit runtime signals', async ({
+  page,
+  isMobile,
+}) => {
+  await page.goto('/');
+  const target = page.getByRole('button', { name: 'Awaken the star' });
+  if (isMobile) await target.tap();
+  else await target.click();
+  const stage = (id: string) =>
+    page.locator(`.stage-track [data-stage="${id}"]`);
+  await expect(stage('downloading')).toHaveAttribute('data-status', 'pending');
+  await page.evaluate(() =>
+    (
+      window as unknown as Window & {
+        __awakening: {
+          emitStage: (event: { type: string; stage: string }) => void;
+        };
+      }
+    ).__awakening.emitStage({ type: 'start', stage: 'study' }),
+  );
+  await expect(stage('study')).toHaveAttribute('data-status', 'pending');
+  for (const id of ['downloading', 'initializing', 'awakening']) {
+    await page.evaluate((stageId) => {
+      const api = (
+        window as unknown as Window & {
+          __awakening: {
+            emitStage: (event: { type: string; stage: string }) => void;
+          };
+        }
+      ).__awakening;
+      api.emitStage({ type: 'start', stage: stageId });
+    }, id);
+    await expect(stage(id)).toHaveAttribute('data-status', 'active');
+    await page.evaluate((stageId) => {
+      const api = (
+        window as unknown as Window & {
+          __awakening: {
+            emitStage: (event: { type: string; stage: string }) => void;
+          };
+        }
+      ).__awakening;
+      api.emitStage({ type: 'complete', stage: stageId });
+    }, id);
+    await expect(stage(id)).toHaveAttribute('data-status', 'complete');
+  }
+  // Genuine awakening completion enters persistent Study automatically.
+  await expect(stage('study')).toHaveAttribute('data-status', 'active');
+  await expect(page.getByRole('status')).toHaveText(
+    'Runtime ready. Study remains active.',
+  );
+  await page.evaluate(() => {
+    const api = (
+      window as unknown as Window & {
+        __awakening: {
+          emitStage: (event: { type: string; stage: string }) => void;
+        };
+      }
+    ).__awakening;
+    api.emitStage({ type: 'complete', stage: 'study' });
+    api.emitStage({ type: 'start', stage: 'study' });
+  });
+  await expect(stage('study')).toHaveAttribute('data-status', 'active');
+  await expect(stage('study')).toContainText('study');
+  // Rejected complete/start must leave Study active (no invented completion).
+  await expect(stage('study')).toHaveAttribute('data-status', 'active');
+  await page.evaluate(() =>
+    (
+      window as unknown as Window & {
+        __awakening: {
+          emitStage: (event: {
+            type: string;
+            stage: string;
+            error: string;
+          }) => void;
+        };
+      }
+    ).__awakening.emitStage({
+      type: 'fail',
+      stage: 'study',
+      error: 'runtime stopped',
+    }),
+  );
+  await expect(stage('study')).toHaveAttribute('data-status', 'failed');
+  await expect(stage('study')).toHaveText('study');
+  await expect(page.locator('#awakening')).toHaveAttribute(
+    'data-failed',
+    'true',
+  );
+  await expect(
+    page.getByRole('button', { name: 'Awaken the star' }),
+  ).toBeDisabled();
+});
