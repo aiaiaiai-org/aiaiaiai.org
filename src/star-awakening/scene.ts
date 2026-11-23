@@ -65,12 +65,10 @@ export function createScene(
   scene.add(star);
   // Each sphere has its own material, so no stage can tint its neighbors.
   const satelliteMaterials = satelliteIds.map(() => material.clone());
-  const satelliteColors = satelliteIds.map(
-    (id) => {
-      const stage = stageDefinitions.find((stage) => stage.satellite === id)!;
-      return new THREE.Color(stage.color);
-    },
-  );
+  const satelliteColors = satelliteIds.map((id) => {
+    const stage = stageDefinitions.find((stage) => stage.satellite === id)!;
+    return new THREE.Color(stage.color);
+  });
   const neutralColor = new THREE.Color('#eeeee9');
   const satellites = satelliteIds.map((id, index) => {
     const sphere = new THREE.Mesh(geometry, satelliteMaterials[index]!);
@@ -115,7 +113,11 @@ export function createScene(
     camera.updateProjectionMatrix();
     renderer.setSize(width, height);
   }
-  function render(time: number, stages: readonly StageSnapshot[], reduced: boolean) {
+  function render(
+    time: number,
+    stages: readonly StageSnapshot[],
+    reduced: boolean,
+  ) {
     const positions = pose(motion.depth, time);
     satelliteIds.forEach((id, index) => {
       const material = satelliteMaterials[index]!;
@@ -130,8 +132,9 @@ export function createScene(
       else material.color.lerp(targetColor, 0.12);
       if (stage?.status === 'active') {
         material.emissive.copy(color);
-        material.emissiveIntensity =
-          reduced ? 0.08 : 0.055 + 0.03 * (1 + Math.sin(time * 2.5));
+        material.emissiveIntensity = reduced
+          ? 0.08
+          : 0.055 + 0.03 * (1 + Math.sin(time * 2.5));
       } else {
         material.emissiveIntensity = 0;
       }

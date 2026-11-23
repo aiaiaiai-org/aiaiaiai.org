@@ -97,7 +97,7 @@
 .stage-track [data-stage='awakening'][data-status='complete'] {
   color: #8062b9;
 }
-.stage-track [data-stage='study'][data-status='complete'] {
+.stage-track [data-stage='study'][data-status='active'] {
   color: #ab7635;
 }
 .stage-track li[data-status='failed'] {

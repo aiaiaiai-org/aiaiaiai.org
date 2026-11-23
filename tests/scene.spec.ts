@@ -220,11 +220,7 @@ test('stage spheres only advance from explicit runtime signals', async ({
     ).__awakening.emitStage({ type: 'start', stage: 'study' }),
   );
   await expect(stage('study')).toHaveAttribute('data-status', 'pending');
-  for (const id of [
-    'downloading',
-    'initializing',
-    'awakening',
-  ]) {
+  for (const id of ['downloading', 'initializing', 'awakening']) {
     await page.evaluate((stageId) => {
       const api = (
         window as unknown as Window & {
@@ -266,14 +262,17 @@ test('stage spheres only advance from explicit runtime signals', async ({
   });
   await expect(stage('study')).toHaveAttribute('data-status', 'active');
   await expect(stage('study')).toContainText('study');
-  // The display cycle does not complete the operating state.
-  await page.waitForTimeout(1800);
+  // Rejected complete/start must leave Study active (no invented completion).
   await expect(stage('study')).toHaveAttribute('data-status', 'active');
   await page.evaluate(() =>
     (
       window as unknown as Window & {
         __awakening: {
-          emitStage: (event: { type: string; stage: string; error: string }) => void;
+          emitStage: (event: {
+            type: string;
+            stage: string;
+            error: string;
+          }) => void;
         };
       }
     ).__awakening.emitStage({
@@ -284,4 +283,11 @@ test('stage spheres only advance from explicit runtime signals', async ({
   );
   await expect(stage('study')).toHaveAttribute('data-status', 'failed');
   await expect(stage('study')).toHaveText('study');
+  await expect(page.locator('#awakening')).toHaveAttribute(
+    'data-failed',
+    'true',
+  );
+  await expect(
+    page.getByRole('button', { name: 'Awaken the star' }),
+  ).toBeDisabled();
 });

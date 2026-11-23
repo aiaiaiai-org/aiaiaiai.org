@@ -77,12 +77,11 @@ test('runtime stages require evidence and preserve the agreed order', () => {
     ],
   );
   assert.equal(timeline.apply({ type: 'start', stage: 'study' }), false);
-  assert.equal(timeline.apply({ type: 'complete', stage: 'downloading' }), false);
-  for (const stage of [
-    'downloading',
-    'initializing',
-    'awakening',
-  ] as const) {
+  assert.equal(
+    timeline.apply({ type: 'complete', stage: 'downloading' }),
+    false,
+  );
+  for (const stage of ['downloading', 'initializing', 'awakening'] as const) {
     assert.equal(timeline.apply({ type: 'start', stage }), true);
     assert.equal(timeline.apply({ type: 'start', stage }), false);
     assert.equal(timeline.apply({ type: 'complete', stage }), true);
@@ -136,5 +135,8 @@ test('download byte counts are monotonic and failures never imply success', () =
   );
   assert.equal(timeline.snapshots()[0]!.status, 'failed');
   assert.equal(timeline.apply({ type: 'start', stage: 'initializing' }), false);
-  assert.equal(timeline.apply({ type: 'complete', stage: 'downloading' }), false);
+  assert.equal(
+    timeline.apply({ type: 'complete', stage: 'downloading' }),
+    false,
+  );
 });

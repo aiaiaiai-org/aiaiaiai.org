@@ -58,7 +58,11 @@ export function mount(root: HTMLElement, runtime?: RuntimeStageSource) {
     last = now;
     if (!reduced.matches) time += dt;
     motion.step(dt, reduced.matches);
-    scene.render(reduced.matches ? 0 : time, stages.snapshots(), reduced.matches);
+    scene.render(
+      reduced.matches ? 0 : time,
+      stages.snapshots(),
+      reduced.matches,
+    );
     update();
     if (!reduced.matches || motion.moving) frame = requestAnimationFrame(tick);
   }
@@ -74,7 +78,9 @@ export function mount(root: HTMLElement, runtime?: RuntimeStageSource) {
     wake();
   }
   function drawStages() {
-    const active = stages.snapshots().find((stage) => stage.status === 'active');
+    const active = stages
+      .snapshots()
+      .find((stage) => stage.status === 'active');
     for (const stage of stages.snapshots()) {
       const node = stageLabels.find((item) => item.dataset.stage === stage.id);
       if (!node) continue;
@@ -104,6 +110,22 @@ export function mount(root: HTMLElement, runtime?: RuntimeStageSource) {
       }, 420);
     }
   }
+  function markRuntimeFailed(message: string) {
+    failed = true;
+    root.dataset.failed = 'true';
+    target.disabled = true;
+    if (stageTimer !== null) window.clearInterval(stageTimer);
+    stageTimer = null;
+    cancelAnimationFrame(frame);
+    frame = 0;
+    unsubscribe?.();
+    unsubscribe = null;
+    // Provider errors may contain secrets or private identifiers.
+    status.textContent = message;
+    reset.textContent = 'Reload preview';
+    reset.hidden = false;
+    update();
+  }
   function onStageEvent(event: StageEvent) {
     if (!runtimeStarted || failed || disposed || !stages.apply(event)) return;
     restartStageCycle();
@@ -115,21 +137,15 @@ export function mount(root: HTMLElement, runtime?: RuntimeStageSource) {
           ? 'Runtime ready. Study remains active.'
           : event.stage + ' complete.';
     } else if (event.type === 'fail') {
-      // Provider errors may contain secrets or private identifiers.
-      status.textContent = event.stage + ' failed. Reload to try again.';
-      reset.textContent = 'Reload preview';
-      reset.hidden = false;
+      markRuntimeFailed(event.stage + ' failed. Reload to try again.');
+      return;
     }
     // Progress bytes are recorded, not converted into invented percentages.
     wake();
   }
   function runtimeFailure(error: unknown) {
     console.error('Model runtime could not start', error);
-    status.textContent = 'Model runtime could not start. Reload to try again.';
-    reset.textContent = 'Reload preview';
-    reset.hidden = false;
-    if (stageTimer !== null) window.clearInterval(stageTimer);
-    stageTimer = null;
+    markRuntimeFailed('Model runtime could not start. Reload to try again.');
   }
   function activate() {
     if (failed || disposed || !motion.activate()) return;

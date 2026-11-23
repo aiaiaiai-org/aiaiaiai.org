@@ -137,12 +137,17 @@ Runtime stage order (fixed on 23 November 2026):
 
 Environment/capability checks are prerequisites to these stages, **not** a simulated fifth or first sphere. A failed stage cannot unlock a later one. No model is yet selected or downloaded by the preview.
 
-The UI MUST subscribe to actual events and measured outcomes; it MUST NOT display simulated progress as real status. Some runtime work may overlap or have fewer/more events than four phases; a dedicated adapter should normalize raw events into four **meaningful** satellite responsibilities, document the mapping, and avoid claims unsupported by the chosen runtime. The phase model can be revised when the provider is selected, preserving four visible spheres.
+The UI MUST subscribe to actual events and measured outcomes; it MUST NOT display simulated progress as real status. Provider runtimes may emit fewer, more, or overlapping raw events; a dedicated adapter MUST normalize those events onto the four fixed stages above, document the mapping, and avoid claims unsupported by the chosen runtime. The four stage identities and sphere colors stay fixed; only the adapter’s raw-event mapping may change with the provider.
 
-Suggested UI-facing types (illustrative, not an approved public API):
+Suggested UI-facing types (illustrative, aligned with the stage timeline; not an approved public API):
 
 ```ts
 type SatelliteId = "amber" | "blue" | "green" | "violet";
+type StageId =
+  | "downloading"
+  | "initializing"
+  | "awakening"
+  | "study";
 type StageStatus = "pending" | "active" | "complete" | "failed";
 type ScenePhase =
   | "idle"
@@ -153,11 +158,12 @@ type ScenePhase =
   | "error";
 
 type StageSnapshot = {
-  id: SatelliteId;
+  id: StageId;
+  satellite: SatelliteId;
   status: StageStatus;
-  progress?: number; // Only if supported by real measured progress; 0..1.
-  label: string;      // Human-readable, accessible status.
-  error?: string;     // Safe, actionable detail when a stage fails.
+  loadedBytes?: number; // Monotonic download evidence only; never invent 0..1 %.
+  totalBytes?: number;
+  error?: string; // Internal/safe detail; UI copy must not echo provider secrets.
 };
 ```
 
