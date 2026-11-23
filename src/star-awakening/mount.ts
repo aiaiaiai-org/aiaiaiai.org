@@ -66,6 +66,59 @@ export function mount(root: HTMLElement) {
     update();
     wake();
   }
+  // iOS elastic overscroll can move the viewport while scrollY stays zero.
+  // Measure the downward pull without blocking Safari's native gesture.
+  const fadeDistance = 40;
+  let pullStart: { id: number; y: number } | null = null;
+  function endPull() {
+    pullStart = null;
+    delete root.dataset.pulling;
+    status.style.opacity = '';
+  }
+  const passiveTouch = { signal: events.signal, passive: true };
+  root.addEventListener(
+    'touchstart',
+    (event) => {
+      if (
+        event.touches.length !== 1 ||
+        window.scrollY > 0 ||
+        (event.target instanceof Element &&
+          event.target.closest('.star-target, .reset'))
+      ) {
+        endPull();
+        return;
+      }
+      const touch = event.touches[0]!;
+      pullStart = { id: touch.identifier, y: touch.clientY };
+    },
+    passiveTouch,
+  );
+  root.addEventListener(
+    'touchmove',
+    (event) => {
+      if (!pullStart || event.touches.length !== 1) return;
+      const touch = event.touches[0]!;
+      if (touch.identifier !== pullStart.id) return;
+      root.dataset.pulling = 'true';
+      const distance = Math.max(0, touch.clientY - pullStart.y);
+      status.style.opacity = String(Math.max(0, 1 - distance / fadeDistance));
+    },
+    passiveTouch,
+  );
+  // End only the tracked finger; another finger ending must not cancel the pull.
+  function onPullEnd(event: TouchEvent) {
+    if (
+      !pullStart ||
+      ![...event.changedTouches].some(
+        (touch) => touch.identifier === pullStart!.id,
+      )
+    )
+      return;
+    endPull();
+  }
+  root.addEventListener('touchend', onPullEnd, { signal: events.signal });
+  root.addEventListener('touchcancel', onPullEnd, { signal: events.signal });
+
   const options = { signal: events.signal };
   target.addEventListener(
     'pointerdown',

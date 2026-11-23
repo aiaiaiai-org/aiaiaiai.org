@@ -68,6 +68,11 @@
   bottom: max(24px, env(safe-area-inset-bottom));
   text-align: center;
   font-size: 11px;
+  opacity: 1;
+  transition: opacity 160ms ease;
+}
+#awakening[data-pulling] #preview-status {
+  transition: none;
 }
 .reset {
   position: absolute;
@@ -90,5 +95,8 @@ noscript {
 @media (prefers-reduced-motion: reduce) {
   .cue {
     transition: opacity 100ms linear;
+  }
+  #preview-status {
+    transition: none;
   }
 }

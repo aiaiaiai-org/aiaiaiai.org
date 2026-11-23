@@ -125,3 +125,57 @@ test('unsupported WebGL exposes an honest fallback', async ({ page }) => {
     page.getByRole('button', { name: 'Awaken the star' }),
   ).toBeHidden();
 });
+
+test('mobile pull fades the status and restores it on release', async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(!isMobile, 'Touch-only interaction');
+  await page.goto('/');
+  // Wait for mount() so pull listeners and preview CSS are attached.
+  await expect(
+    page.getByRole('button', { name: 'Awaken the star' }),
+  ).toBeEnabled();
+  const scene = page.locator('.scene');
+  const status = page.getByRole('status');
+  await expect(status).toHaveCSS('opacity', '1');
+
+  const touch = async (type: string, y: number) =>
+    scene.evaluate(
+      (element, { type, y }) => {
+        const ended = type === 'touchend' || type === 'touchcancel';
+        const point = new Touch({
+          identifier: 1,
+          target: element,
+          clientX: 100,
+          clientY: y,
+        });
+        const active = ended ? [] : [point];
+        const changed = [point];
+        element.dispatchEvent(
+          new TouchEvent(type, {
+            bubbles: true,
+            cancelable: true,
+            touches: active,
+            targetTouches: active,
+            changedTouches: changed,
+          }),
+        );
+      },
+      { type, y },
+    );
+
+  await touch('touchstart', 200);
+  await touch('touchmove', 220);
+  await expect(status).toHaveCSS('opacity', '0.5');
+  await touch('touchmove', 260);
+  await expect(status).toHaveCSS('opacity', '0');
+  await touch('touchend', 260);
+  await expect(status).toHaveCSS('opacity', '1');
+
+  await touch('touchstart', 200);
+  await touch('touchmove', 180);
+  await expect(status).toHaveCSS('opacity', '1');
+  await touch('touchcancel', 180);
+  await expect(status).toHaveCSS('opacity', '1');
+});
