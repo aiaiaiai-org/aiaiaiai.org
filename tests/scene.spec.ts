@@ -132,6 +132,10 @@ test('mobile pull fades the status and restores it on release', async ({
 }) => {
   test.skip(!isMobile, 'Touch-only interaction');
   await page.goto('/');
+  // Wait for mount() so pull listeners and preview CSS are attached.
+  await expect(
+    page.getByRole('button', { name: 'Awaken the star' }),
+  ).toBeEnabled();
   const scene = page.locator('.scene');
   const status = page.getByRole('status');
   await expect(status).toHaveCSS('opacity', '1');
@@ -139,18 +143,24 @@ test('mobile pull fades the status and restores it on release', async ({
   const touch = async (type: string, y: number) =>
     scene.evaluate(
       (element, { type, y }) => {
-        const touches =
-          type === 'touchend' || type === 'touchcancel'
-            ? []
-            : [
-                new Touch({
-                  identifier: 1,
-                  target: element,
-                  clientX: 100,
-                  clientY: y,
-                }),
-              ];
-        element.dispatchEvent(new TouchEvent(type, { bubbles: true, touches }));
+        const ended = type === 'touchend' || type === 'touchcancel';
+        const point = new Touch({
+          identifier: 1,
+          target: element,
+          clientX: 100,
+          clientY: y,
+        });
+        const active = ended ? [] : [point];
+        const changed = [point];
+        element.dispatchEvent(
+          new TouchEvent(type, {
+            bubbles: true,
+            cancelable: true,
+            touches: active,
+            targetTouches: active,
+            changedTouches: changed,
+          }),
+        );
       },
       { type, y },
     );

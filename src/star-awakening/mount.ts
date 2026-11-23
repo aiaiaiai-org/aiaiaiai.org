@@ -105,8 +105,19 @@ export function mount(root: HTMLElement) {
     },
     passiveTouch,
   );
-  root.addEventListener('touchend', endPull, { signal: events.signal });
-  root.addEventListener('touchcancel', endPull, { signal: events.signal });
+  // End only the tracked finger; another finger ending must not cancel the pull.
+  function onPullEnd(event: TouchEvent) {
+    if (
+      !pullStart ||
+      ![...event.changedTouches].some(
+        (touch) => touch.identifier === pullStart!.id,
+      )
+    )
+      return;
+    endPull();
+  }
+  root.addEventListener('touchend', onPullEnd, { signal: events.signal });
+  root.addEventListener('touchcancel', onPullEnd, { signal: events.signal });
 
   const options = { signal: events.signal };
   target.addEventListener(
