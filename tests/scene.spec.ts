@@ -179,3 +179,23 @@ test('mobile pull fades the status and restores it on release', async ({
   await touch('touchcancel', 180);
   await expect(status).toHaveCSS('opacity', '1');
 });
+
+test('scene long-press region disables selection without blanking status text', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await expect(
+    page.getByRole('button', { name: 'Awaken the star' }),
+  ).toBeEnabled();
+  await expect(page.locator('.scene')).toHaveCSS('user-select', 'none');
+  await expect(page.getByRole('button', { name: 'Awaken the star' })).toHaveCSS(
+    'user-select',
+    'none',
+  );
+  // Status and preview note stay selectable; selection is scoped to the 3D region.
+  await expect(page.getByRole('status')).not.toHaveCSS('user-select', 'none');
+  await expect(page.locator('.preview-note')).not.toHaveCSS(
+    'user-select',
+    'none',
+  );
+});
